@@ -335,8 +335,8 @@ export class Renderer {
     if (frameRect('tree') === undefined) return;
 
     for (const layer of [
-      { factor: 0.22, spacing: px(150), alpha: 0.5, scale: 0.7, base: px(214) },
-      { factor: 0.45, spacing: px(190), alpha: 0.85, scale: 1, base: px(236) },
+      { factor: 0.22, spacing: px(132), alpha: 0.72, scale: 0.72, base: px(216) },
+      { factor: 0.45, spacing: px(176), alpha: 1, scale: 1, base: px(240) },
     ]) {
       const img = (this.tiles as AtlasTiles).prop('tree', layer.scale);
       const ox = camX * layer.factor;

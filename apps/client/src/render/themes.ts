@@ -96,9 +96,11 @@ export const THEMES = {
     art: 'procedural',
   },
   night: {
-    // The supplied tileset's own palette. It ships moons, so it is a night
-    // biome; the sky is pitched darker than the art's ground interior so a
-    // solid mass still reads as solid against it.
+    // Sampled straight from the reference render of this tileset, not guessed.
+    // My first pass had the values inverted — a near-black sky with pale trees.
+    // The art wants the opposite: a light teal sky with everything else reading
+    // as a dark silhouette against it. Terrain still separates from background
+    // by a wide value gap; it just sits on the dark side of it.
     name: 'night',
     body: '#3c3352',
     bodyDark: '#272034',
@@ -110,12 +112,12 @@ export const THEMES = {
     weakDark: '#2a3244',
     hazard: '#ff2f55',
     hazardDark: '#a81334',
-    skyTop: '#07060d',
-    skyBottom: '#171327',
-    haze: '90,72,140',
-    far: '#2b3c56',
-    near: '#3b5273',
-    detail: '#141221',
+    skyTop: '#4d8579',
+    skyBottom: '#67a396',
+    haze: '120,180,168',
+    far: '#2f4a52',
+    near: '#36547d',
+    detail: '#255239',
     surface: 'masonry',
     fringe: 'chipped',
     backdrop: 'trees',

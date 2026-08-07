@@ -71,10 +71,19 @@ function drawTally(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.fillText(String(world.corpsesUsed.size), px(112), px(26));
 }
 
+/**
+ * Boxed like every other readout. It used to sit bare on the sky, which was
+ * legible while the sky was near-black and vanished the moment a biome shipped
+ * a light one — HUD contrast cannot depend on the world behind it.
+ */
 function drawSegmentName(ctx: CanvasRenderingContext2D, world: World): void {
-  ctx.fillStyle = P.hudDim;
+  const label = world.level.segmentNameAt(world.player.x).toUpperCase();
+  const w = ctx.measureText(label).width + px(16);
+  ctx.fillStyle = P.hudBack;
+  ctx.fillRect(VIEW_W / 2 - w / 2, px(4), w, px(16));
+  ctx.fillStyle = P.hud;
   ctx.textAlign = 'center';
-  ctx.fillText(world.level.segmentNameAt(world.player.x).toUpperCase(), VIEW_W / 2, px(8));
+  ctx.fillText(label, VIEW_W / 2, px(8));
   ctx.textAlign = 'left';
 }
 
@@ -88,6 +97,9 @@ function drawTimer(ctx: CanvasRenderingContext2D, world: World): void {
 }
 
 function drawDeathBanner(ctx: CanvasRenderingContext2D, world: World): void {
+  // Same reason: a scrim, so the message survives whatever biome is behind it.
+  ctx.fillStyle = 'rgba(10,7,14,0.55)';
+  ctx.fillRect(0, VIEW_H / 2 - px(20), VIEW_W, px(44));
   ctx.textAlign = 'center';
   ctx.fillStyle = P.hazard;
   ctx.fillText(`DIED AT ${world.lastDeathAt.toUpperCase()}`, VIEW_W / 2, VIEW_H / 2 - px(12));

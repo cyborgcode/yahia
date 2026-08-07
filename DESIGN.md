@@ -125,9 +125,14 @@ rivals on it, ambiguity about what you can stand on is fatal.
 | Terrain | Solid silhouette | Yes |
 | Hazard | One saturated colour, used nowhere else | Kills |
 
-Backgrounds are desaturated **and** separated by a large value gap, never mid-tone —
-background tiles reading as standable floor is the fastest way to make a pixel platformer
-feel unfair.
+Backgrounds are separated by a large value gap, never mid-tone — background reading as
+standable floor is the fastest way to make a pixel platformer feel unfair. The *direction*
+of that gap is not fixed: the night biome puts a light teal sky behind dark terrain and is
+just as readable as a dark sky behind lit terrain. What matters is the size of the gap.
+
+A corollary learned by breaking it: **HUD contrast cannot depend on the world behind it.**
+The segment name sat bare on the sky, which was fine while every biome had a dark one and
+vanished the moment one shipped a light sky. Every readout is boxed now.
 
 This also solves the 12-colour palette problem for free: ghosts convey no identity, so
 they're all one neutral tone. Only corpses need player colour.
