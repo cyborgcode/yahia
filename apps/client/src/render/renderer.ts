@@ -6,12 +6,15 @@ import { VIEW_H, VIEW_W } from '../game/view';
 import type { World } from '../game/world';
 import { P } from './palette';
 import { RUN_CYCLE, SpriteBank, type SpriteName } from './sprites';
+import { TileBank } from './tileart';
 
 interface Tower {
   x: number;
   y: number;
   w: number;
   h: number;
+  /** Stable per-tower randomness for merlons and window rows. */
+  seed: number;
 }
 
 /** Enough silhouettes to cover the scrolled distance of one parallax layer. */
@@ -28,7 +31,7 @@ function towerRow(
   for (let i = 0; i < count; i++) {
     const w = rng.int(widths[0], widths[1]);
     const h = rng.int(heights[0], heights[1]);
-    out.push({ x: i * spacing + rng.int(-spacing / 4, spacing / 4), y: baseY - h, w, h });
+    out.push({ x: i * spacing + rng.int(-spacing / 4, spacing / 4), y: baseY - h, w, h, seed: rng.int(0, 4095) });
   }
   return out;
 }
@@ -48,6 +51,7 @@ export class Renderer {
   private nearTowers: Tower[] = [];
   private builtForSeed = -1;
   private readonly sprites = new SpriteBank();
+  private readonly tiles = new TileBank();
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -68,8 +72,8 @@ export class Renderer {
     const camY = Math.round(world.camY);
 
     this.drawSky();
-    this.drawTowers(this.farTowers, camX, camY, 0.2, P.ruinFar);
-    this.drawTowers(this.nearTowers, camX, camY, 0.45, P.ruinNear);
+    this.drawTowers(this.farTowers, camX, camY, 0.2, P.ruinFar, P.ruinWindow);
+    this.drawTowers(this.nearTowers, camX, camY, 0.45, P.ruinNear, P.ruinWindow);
     this.drawTiles(world, camX, camY);
     this.drawCheckpoints(world, camX, camY);
     this.drawCorpses(world, camX, camY);
@@ -89,6 +93,15 @@ export class Renderer {
     grad.addColorStop(1, P.skyBottom);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+
+    // Haze sitting on the horizon, so the sky has depth instead of being a
+    // single flat ramp behind the ruins.
+    const haze = ctx.createLinearGradient(0, VIEW_H * 0.42, 0, VIEW_H * 0.86);
+    haze.addColorStop(0, 'rgba(120,72,96,0)');
+    haze.addColorStop(0.55, 'rgba(140,84,104,0.16)');
+    haze.addColorStop(1, 'rgba(120,72,96,0)');
+    ctx.fillStyle = haze;
+    ctx.fillRect(0, VIEW_H * 0.42, VIEW_W, VIEW_H * 0.44);
   }
 
   /**
@@ -105,17 +118,52 @@ export class Renderer {
     this.builtForSeed = seed;
   }
 
-  private drawTowers(towers: Tower[], camX: number, camY: number, factor: number, color: string): void {
+  private drawTowers(
+    towers: Tower[],
+    camX: number,
+    camY: number,
+    factor: number,
+    color: string,
+    windowColor: string,
+  ): void {
     const ctx = this.ctx;
-    ctx.fillStyle = color;
     const ox = Math.round(camX * factor);
     // Damped and clamped, so the horizon stays put even in a long fall.
     const oy = Math.round(clamp((camY - px(300)) * factor * 0.12, -px(20), px(20)));
+    const merlon = Math.max(2, px(3));
+
     for (const t of towers) {
       const x = t.x - ox;
       if (x + t.w < 0 || x > VIEW_W) continue;
       const y = t.y - oy;
-      ctx.fillRect(x, y, t.w, VIEW_H - y);
+
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y + merlon, t.w, VIEW_H - y - merlon);
+
+      // Battlements: a ruined skyline reads as architecture, a flat rectangle
+      // reads as a bar chart.
+      const count = 2 + (t.seed % 3);
+      const step = t.w / (count * 2 + 1);
+      for (let i = 0; i <= count; i++) {
+        const mx = x + step * (i * 2);
+        const mh = merlon * (1 + ((t.seed >> (i + 1)) & 1));
+        ctx.fillRect(mx, y + merlon - mh, step, mh + merlon);
+      }
+
+      // Window slots. Skipped on the far layer, where they would be noise.
+      if (factor > 0.3) {
+        ctx.fillStyle = windowColor;
+        const gapX = px(9);
+        const gapY = px(11);
+        const wW = px(3);
+        const wH = px(5);
+        for (let wy = y + px(8); wy < VIEW_H; wy += gapY) {
+          for (let wx = x + px(3); wx + wW < x + t.w - px(2); wx += gapX) {
+            if (((wx | 0) * 31 + (wy | 0) * 17 + t.seed) % 5 === 0) continue;
+            ctx.fillRect(wx, wy, wW, wH);
+          }
+        }
+      }
     }
   }
 
@@ -135,47 +183,34 @@ export class Renderer {
         const y = ty * TILE - camY;
 
         switch (t) {
-          case Tile.Solid: {
-            const exposed = level.get(tx, ty - 1) === Tile.Empty;
-            ctx.fillStyle = exposed ? P.terrain : P.terrainDeep;
-            ctx.fillRect(x, y, TILE, TILE);
-            if (exposed) {
-              ctx.fillStyle = P.terrainLip;
-              ctx.fillRect(x, y, TILE, px(3));
-            }
+          case Tile.Solid:
+            ctx.drawImage(
+              this.tiles.get(level.get(tx, ty - 1) === Tile.Empty ? 'top' : 'deep', tx, ty),
+              x,
+              y,
+            );
             break;
-          }
           case Tile.SlopeR:
-            this.slope(x, y, true);
+            ctx.drawImage(this.tiles.get('slopeR', tx, ty), x, y);
             break;
           case Tile.SlopeL:
-            this.slope(x, y, false);
+            ctx.drawImage(this.tiles.get('slopeL', tx, ty), x, y);
             break;
           case Tile.Breakable: {
+            ctx.drawImage(this.tiles.get('breakable', tx, ty), x, y);
             const fuse = world.fuseAt(tx, ty);
-            ctx.fillStyle = P.breakable;
-            ctx.fillRect(x, y, TILE, TILE);
-            ctx.fillStyle = P.breakableLip;
-            ctx.fillRect(x, y, TILE, px(2));
             if (fuse !== null) {
               // Telegraph the collapse: cracks widen as the fuse burns.
               ctx.fillStyle = P.terrainDeep;
               const n = 1 + Math.floor(fuse * 4);
-              for (let i = 0; i < n; i++) ctx.fillRect(x + px(2) + i * px(3), y + px(3), px(1), TILE - px(4));
+              for (let i = 0; i < n; i++) {
+                ctx.fillRect(x + px(2) + i * px(3), y + px(3), px(1), TILE - px(4));
+              }
             }
             break;
           }
           case Tile.Spike:
-            ctx.fillStyle = P.hazard;
-            for (let i = 0; i < 4; i++) {
-              const sx = x + i * px(4);
-              ctx.beginPath();
-              ctx.moveTo(sx, y + TILE);
-              ctx.lineTo(sx + px(2), y + TILE - px(9));
-              ctx.lineTo(sx + px(4), y + TILE);
-              ctx.closePath();
-              ctx.fill();
-            }
+            this.spikes(x, y);
             break;
           case Tile.Goal:
             ctx.fillStyle = P.goal;
@@ -189,33 +224,32 @@ export class Renderer {
     }
   }
 
-  private slope(x: number, y: number, risingRight: boolean): void {
+  /** Hazards keep their one saturated colour but gain a lit edge and a base. */
+  private spikes(x: number, y: number): void {
     const ctx = this.ctx;
-    ctx.fillStyle = P.terrain;
-    ctx.beginPath();
-    if (risingRight) {
-      ctx.moveTo(x, y + TILE);
-      ctx.lineTo(x + TILE, y);
-      ctx.lineTo(x + TILE, y + TILE);
-    } else {
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + TILE, y + TILE);
-      ctx.lineTo(x, y + TILE);
+    const n = 4;
+    const w = TILE / n;
+    for (let i = 0; i < n; i++) {
+      const sx = x + i * w;
+      const tip = y + TILE - px(9);
+      ctx.fillStyle = P.hazardDark;
+      ctx.beginPath();
+      ctx.moveTo(sx, y + TILE);
+      ctx.lineTo(sx + w / 2, tip);
+      ctx.lineTo(sx + w, y + TILE);
+      ctx.closePath();
+      ctx.fill();
+      // Lit left face, so a spike reads as a solid object rather than a flat cut-out.
+      ctx.fillStyle = P.hazard;
+      ctx.beginPath();
+      ctx.moveTo(sx + w * 0.12, y + TILE);
+      ctx.lineTo(sx + w / 2, tip);
+      ctx.lineTo(sx + w * 0.5, y + TILE);
+      ctx.closePath();
+      ctx.fill();
     }
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.strokeStyle = P.terrainLip;
-    ctx.lineWidth = px(2);
-    ctx.beginPath();
-    if (risingRight) {
-      ctx.moveTo(x, y + TILE);
-      ctx.lineTo(x + TILE, y);
-    } else {
-      ctx.moveTo(x, y);
-      ctx.lineTo(x + TILE, y + TILE);
-    }
-    ctx.stroke();
+    ctx.fillStyle = P.hazardDark;
+    ctx.fillRect(x, y + TILE - px(1), TILE, px(1));
   }
 
   private drawCheckpoints(world: World, camX: number, camY: number): void {

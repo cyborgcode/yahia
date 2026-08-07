@@ -14,6 +14,7 @@ export const P = {
   skyBottom: '#2a1d2e',
   ruinFar: '#221a2a',
   ruinNear: '#2e2334',
+  ruinWindow: '#191320',
 
   terrain: '#6d4c33',
   terrainLip: '#a87c52',
@@ -23,6 +24,7 @@ export const P = {
   breakableLip: '#a2917a',
 
   hazard: '#ff2f55',
+  hazardDark: '#a81334',
 
   player: '#f2e3c4',
   playerSash: '#3d9ad4',
