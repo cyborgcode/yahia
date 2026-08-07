@@ -24,10 +24,11 @@ await page.waitForTimeout(100);
 
 // Find a column that actually has ground with headroom above it, walking back
 // from a hazard segment — placing blind lands in a gap.
-const placed = await page.evaluate(() => {
+const placed = await page.evaluate((wantSeg) => {
   const w = window.yahia;
   const L = w.level;
   const seg =
+    L.placed.find((p) => p.name === wantSeg) ??
     L.placed.find((p) => p.name === 'meatgrinder') ??
     L.placed.find((p) => p.name === 'spikes') ??
     L.placed[8];
@@ -44,7 +45,7 @@ const placed = await page.evaluate(() => {
     return { tx, ty, seg: seg.name };
   }
   return null;
-});
+}, process.env.SEG ?? 'meatgrinder');
 if (placed === null) throw new Error('no ground found to stand on');
 await page.waitForTimeout(420);
 

@@ -12,11 +12,17 @@ import {
   loadAtlas,
   validateSprites,
 } from './render/sprites';
+import { loadWorldAtlas } from './render/worldart';
 import { createTuner } from './ui/tuner';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const stage = document.querySelector<HTMLElement>('#stage');
 if (canvas === null || stage === null) throw new Error('missing stage');
+
+// Atlases must decode BEFORE the renderer is constructed, not merely before the
+// loop starts: the tile bank bakes its canvases from the atlas image in the
+// constructor, and would otherwise bake a set of blank tiles.
+await Promise.all([loadAtlas(), loadWorldAtlas()]);
 
 const renderer = new Renderer(canvas);
 const input = new Input();
@@ -82,10 +88,6 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') void keepAwake();
 });
 void keepAwake();
-
-// The atlas must be decoded before the first frame: starting the loop without
-// art would render an empty world for however long the image takes.
-await loadAtlas();
 
 startLoop(
   (dt) => world.step(dt, input),

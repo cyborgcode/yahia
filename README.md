@@ -101,13 +101,27 @@ apps/client/src/
   game/     tuning · tiles · segments · level · physics · player · world
   render/   renderer · hud · palette · sprites · tileart
   ui/       tuner
-tools/      playtest · bench · spritesheet · shot · slice_sheets.py
+tools/      playtest · bench · spritesheet · shot · slice_sheets.py · slice_tiles.py
 ```
+
+**The world is a real tileset.** [`tools/slice_tiles.py`](tools/slice_tiles.py) slices the
+supplied environment art, props and enemy characters into a 6 KB atlas. Two things it has
+to work around: the tileset draws platforms as outlined *shells* over see-through
+interiors, but YAHIA's ground is a solid mass — so interiors are composited onto an opaque
+base sampled from the art itself. And it ships no slope tiles, so slopes are the surface
+tile clipped to a triangle with the art's own two-tone crust drawn along the diagonal.
+
+**Creatures are obstacles.** An `E` in a segment marks a spot where something stands; the
+level picks which creature from the seed. They kill on contact and are **static** — at
+these speeds a patrolling enemy is unreadable, and an obstacle you can't read isn't
+difficulty, it's a coin flip. They deliberately break the one-hazard-colour rule, because a
+character reads as dangerous by being a character; a pulsing mark underneath keeps them
+inside the same visual language anyway.
 
 **Biomes are a palette entry, not a tileset.** Tile and backdrop art is generated from a
 [`Theme`](apps/client/src/render/themes.ts), so a new biome is a colour table plus two
 style flags (`masonry`/`earth` ground, `towers`/`trees` backdrop). Two ship today —
-`?theme=forest` (default) and `?theme=ruins` — and the generator is deterministic, so the
+`?theme=night` (default, the real tileset), `?theme=forest` and `?theme=ruins` — and the generator is deterministic, so the
 same seed gives the same track in each.
 
 Two rules survive every biome, because they are readability contracts rather than
@@ -140,7 +154,7 @@ one command away.
 
 ## Hosting
 
-Client deploys to **Vercel** as a static bundle (`vercel.json` is set up; ~29 KB JS + a 19 KB atlas).
+Client deploys to **Vercel** as a static bundle (`vercel.json` is set up; ~36 KB JS + 25 KB of atlases).
 
 The multiplayer rooms will **not** live on Vercel. Its WebSocket support (public beta,
 June 2026) pins connections to an instance with no cross-instance broadcast and a ~5
@@ -150,12 +164,13 @@ never see each other. Rooms belong on **Cloudflare Durable Objects**, where
 
 ## Status
 
-Verified by `npm run playtest` (15/15 checks, real browser, real build):
+Verified by `npm run playtest` (17/17 checks, real browser, real build):
 
 - Tracks generate, vary by seed, and are byte-identical for the same seed
 - Auto-run, jump, slide, stand-up, respawn, checkpoints
 - **Sliding a descent peaks at 900 vs 583 running it** — the momentum model pays
 - Death leaves a body; bodies are solid platforms; martyr credit is recorded
+- Creatures are placed in the track and are lethal to touch
 
 ## Not built yet
 

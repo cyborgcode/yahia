@@ -6,6 +6,7 @@ import {
   segmentWidth,
   type Segment,
 } from './segments';
+import { ENEMY_KINDS } from '../render/worldart';
 import { px } from './scale';
 import { CHAR_TO_TILE, TILE, Tile, isGround } from './tiles';
 
@@ -26,11 +27,20 @@ export interface Checkpoint {
   y: number;
 }
 
+/** A creature standing on the ground, deadly to touch. */
+export interface EnemySpawn {
+  x: number;
+  /** World Y of the ground under its feet. */
+  y: number;
+  kind: string;
+}
+
 export class Level {
   readonly w: number;
   readonly h = GRID_H;
   readonly data: Uint8Array;
   readonly checkpoints: Checkpoint[] = [];
+  readonly enemies: EnemySpawn[] = [];
   readonly placed: { name: string; x: number }[] = [];
   goalX = 0;
 
@@ -154,6 +164,15 @@ export function buildLevel(seed: number, segmentCount = 24): Level {
       const line = seg.rows[ry]!;
       for (let rx = 0; rx < line.length; rx++) {
         const t = CHAR_TO_TILE[line[rx]!] ?? Tile.Empty;
+        if (t === Tile.EnemyMark) {
+          // A marker, never a tile: the creature stands on the ground beneath.
+          level.enemies.push({
+            x: (cursor + rx) * TILE + TILE / 2,
+            y: (offset + ry + 1) * TILE,
+            kind: ENEMY_KINDS[rng.int(0, ENEMY_KINDS.length - 1)]!,
+          });
+          continue;
+        }
         if (t !== Tile.Empty) level.set(cursor + rx, offset + ry, t);
         if (t === Tile.Goal) level.goalX = (cursor + rx) * TILE;
       }

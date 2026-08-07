@@ -10,6 +10,7 @@
  *
  * Legend:  `#` solid   `/` slope up-right   `\` slope down-right
  *          `^` spike   `=` breakable floor  `G` goal   `.` empty
+ *          `E` a creature stands here — a marker, not a tile
  *
  * Rows only need to cover the segment's own geometry; headroom comes from the
  * level grid, and anything below an unfilled column is open void.
@@ -105,6 +106,34 @@ export const SEGMENTS: readonly Segment[] = [
   },
 
   // --- tier 3: chains -----------------------------------------------------
+  {
+    // A creature planted on open ground: pure reaction, nothing to read but
+    // the gap you have to clear.
+    name: 'sentry',
+    tier: 2,
+    requires: ['jump'],
+    entry: 1,
+    exit: 1,
+    rows: ['.....E......', '############'],
+  },
+  {
+    name: 'picket',
+    tier: 3,
+    requires: ['jump'],
+    entry: 1,
+    exit: 1,
+    rows: ['...E.....E......', '################'],
+  },
+  {
+    // The body is on the far lip, so the jump has to clear the gap AND land
+    // short of what is waiting on the other side.
+    name: 'gatekeeper',
+    tier: 4,
+    requires: ['jump', 'momentum'],
+    entry: 1,
+    exit: 1,
+    rows: ['..........E.....', '#####.....######'],
+  },
   {
     name: 'spikes',
     tier: 3,
@@ -230,7 +259,7 @@ export const SEGMENTS: readonly Segment[] = [
     rows: [
       '.....#######........',
       '.....#######........',
-      '..^.................',
+      '..^.............E...',
       '#############...####',
     ],
   },

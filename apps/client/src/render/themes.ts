@@ -42,6 +42,8 @@ export interface Theme {
   /** How the cap meets the air: a chipped stone edge, or grass blades. */
   readonly fringe: 'chipped' | 'grass';
   readonly backdrop: 'towers' | 'trees';
+  /** Where tile art comes from: generated here, or sliced from a real tileset. */
+  readonly art: 'procedural' | 'atlas';
 }
 
 export const THEMES = {
@@ -66,6 +68,7 @@ export const THEMES = {
     surface: 'masonry',
     fringe: 'chipped',
     backdrop: 'towers',
+    art: 'procedural',
   },
   forest: {
     name: 'forest',
@@ -90,6 +93,33 @@ export const THEMES = {
     surface: 'earth',
     fringe: 'grass',
     backdrop: 'trees',
+    art: 'procedural',
+  },
+  night: {
+    // The supplied tileset's own palette. It ships moons, so it is a night
+    // biome; the sky is pitched darker than the art's ground interior so a
+    // solid mass still reads as solid against it.
+    name: 'night',
+    body: '#3c3352',
+    bodyDark: '#272034',
+    bodyDeep: '#1b1626',
+    seam: '#231d30',
+    cap: '#e0622f',
+    capLit: '#5bd94c',
+    weak: '#3f4a63',
+    weakDark: '#2a3244',
+    hazard: '#ff2f55',
+    hazardDark: '#a81334',
+    skyTop: '#07060d',
+    skyBottom: '#171327',
+    haze: '90,72,140',
+    far: '#2b3c56',
+    near: '#3b5273',
+    detail: '#141221',
+    surface: 'masonry',
+    fringe: 'chipped',
+    backdrop: 'trees',
+    art: 'atlas',
   },
 } as const satisfies Record<string, Theme>;
 
@@ -104,7 +134,7 @@ function pick(): Theme {
   const params = new URLSearchParams(location.search);
   const wanted = params.get('theme');
   if (wanted !== null && wanted in THEMES) return THEMES[wanted as ThemeName];
-  return THEMES.forest;
+  return THEMES.night;
 }
 
 export const THEME: Theme = pick();

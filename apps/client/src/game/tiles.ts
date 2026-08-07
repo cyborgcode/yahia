@@ -14,6 +14,8 @@ export const Tile = {
   /** Solid until a runner crosses it, then it drops away. */
   Breakable: 5,
   Goal: 6,
+  /** Not solid: a spawn marker the level reads and then clears. */
+  EnemyMark: 7,
 } as const;
 
 export type Tile = (typeof Tile)[keyof typeof Tile];
@@ -27,6 +29,7 @@ export const CHAR_TO_TILE: Record<string, Tile> = {
   '^': Tile.Spike,
   '=': Tile.Breakable,
   G: Tile.Goal,
+  E: Tile.EnemyMark,
 };
 
 /** Tiles you can stand on. */

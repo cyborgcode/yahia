@@ -16,6 +16,7 @@
     "spritesheet": "node tools/spritesheet.mjs",
     "shot": "node tools/shot.mjs",
     "bench": "node tools/bench.mjs",
-    "sprites": "python3 tools/slice_sheets.py"
+    "sprites": "python3 tools/slice_sheets.py",
+    "tiles": "python3 tools/slice_tiles.py"
   }
 }

@@ -233,6 +233,25 @@ for (let i = 0; i < 20; i++) {
 }
 check('never permanently stalls', stuck < 6, `${stuck}/20 sampled windows without progress`);
 
+// --- creatures are lethal ---------------------------------------------------
+const enemyKill = await page.evaluate(async () => {
+  const w = window.yahia;
+  const list = w.level.enemies;
+  if (list.length === 0) return { count: 0 };
+  const e = list[0];
+  // Stand the runner exactly where the creature is; it must not survive.
+  w.player.spawn(e.x, e.y);
+  await new Promise((r) => setTimeout(r, 120));
+  return { count: list.length, alive: w.player.alive, kind: e.kind };
+});
+if (enemyKill.count === 0) {
+  check('creatures placed in the track', false, 'level generated none');
+} else {
+  check('creatures placed in the track', true, `${enemyKill.count} across the track`);
+  check('touching a creature kills', enemyKill.alive === false,
+    `stood on a ${enemyKill.kind}, alive=${enemyKill.alive}`);
+}
+
 // --- frame rate -------------------------------------------------------------
 // 1920x1080 Canvas2D is the real risk of scaling up twice. Headless Chromium on
 // a server is NOT a phone, so this only catches a catastrophic regression —

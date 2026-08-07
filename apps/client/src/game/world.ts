@@ -1,6 +1,7 @@
 import type { Input } from '../core/input';
 import { CORPSE_SPRITE_H, CORPSE_SPRITE_W } from '../render/sprites';
-import { buildLevel, type Checkpoint, type Level } from './level';
+import { buildLevel, type Checkpoint, type EnemySpawn, type Level } from './level';
+import { enemyBox, type EnemyKind } from '../render/worldart';
 import type { Corpse } from './physics';
 import { Player } from './player';
 import { TILE, Tile, clamp } from './tiles';
@@ -19,6 +20,8 @@ const BREAK_FUSE_MS = 260;
  */
 const CORPSE_W = CORPSE_SPRITE_W;
 const CORPSE_H = CORPSE_SPRITE_H;
+
+export type { EnemySpawn };
 
 export class World {
   level: Level;
@@ -86,6 +89,7 @@ export class World {
       );
 
       this.topSpeed = Math.max(this.topSpeed, this.player.vx);
+      this.checkEnemies();
       this.advanceCheckpoint();
       this.creditCorpseSupport();
       this.lightFuse();
@@ -98,6 +102,28 @@ export class World {
     }
 
     this.updateCamera(dt);
+  }
+
+  /**
+   * Creatures are static hazards: at these speeds a patrolling enemy would be
+   * unreadable, and an obstacle you cannot read is not difficulty, it is a
+   * coin flip. They kill on contact, exactly like a spike.
+   */
+  private checkEnemies(): void {
+    const p = this.player;
+    const px0 = p.x;
+    const px1 = p.x + p.w;
+    const py0 = p.y;
+    const py1 = p.y + p.h;
+    for (const e of this.level.enemies) {
+      // Cheap reject: the list is level-wide and mostly far away.
+      if (e.x < px0 - 200 || e.x > px1 + 200) continue;
+      const b = enemyBox(e.kind as EnemyKind, e.x, e.y);
+      if (px0 < b.x + b.w && px1 > b.x && py0 < b.y + b.h && py1 > b.y) {
+        p.alive = false;
+        return;
+      }
+    }
   }
 
   /** Death leaves the body exactly where it fell — including mid-air. */

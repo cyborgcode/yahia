@@ -8,6 +8,15 @@ import { P } from './palette';
 import { RUN_CYCLE, SpriteBank, type SpriteName } from './sprites';
 import { BackdropBank, TileBank } from './tileart';
 import { THEME } from './themes';
+import {
+  AtlasTiles,
+  drawFrame,
+  enemyDrawOrigin,
+  enemyFrames,
+  frameRect,
+  type EnemyKind,
+  type Faces,
+} from './worldart';
 
 interface Tower {
   x: number;
@@ -65,7 +74,9 @@ export class Renderer {
   /** Diagnostic: skip all drawing to isolate simulation cost from render cost. */
   enabled = true;
   private stageStart = 0;
-  private readonly tiles = new TileBank();
+  // A biome either generates its tiles or slices them from a real tileset;
+  // both answer get(kind), so nothing downstream cares which.
+  private readonly tiles = THEME.art === 'atlas' ? new AtlasTiles() : new TileBank();
   private readonly sky = this.bakeSky();
   private readonly farBank = new BackdropBank(0x51ed, THEME.far, THEME.detail, [px(14), px(34)], false);
   private readonly nearBank = new BackdropBank(0xb00c, THEME.near, THEME.detail, [px(20), px(52)], true);
@@ -92,12 +103,17 @@ export class Renderer {
     if (this.profiling) this.stageStart = performance.now();
     this.drawSky();
     this.mark('sky');
-    this.drawTowers(this.farTowers, this.farBank, camX, camY, 0.2);
-    this.drawTowers(this.nearTowers, this.nearBank, camX, camY, 0.45);
+    if (THEME.art === 'atlas') {
+      this.drawGrove(camX, camY);
+    } else {
+      this.drawTowers(this.farTowers, this.farBank, camX, camY, 0.2);
+      this.drawTowers(this.nearTowers, this.nearBank, camX, camY, 0.45);
+    }
     this.mark('towers');
     this.drawTiles(world, camX, camY);
     this.mark('tiles');
     this.drawCheckpoints(world, camX, camY);
+    this.drawEnemies(world, camX, camY);
     this.drawCorpses(world, camX, camY);
     this.drawPlayer(world, camX, camY);
     this.mark('actors');
@@ -204,6 +220,23 @@ export class Renderer {
         switch (t) {
           case Tile.Solid: {
             const exposed = level.get(tx, ty - 1) === Tile.Empty;
+            if (this.tiles instanceof AtlasTiles) {
+              // The tileset draws platforms as shells, so a face only exists
+              // where the ground borders air — and only near the surface. The
+              // edge tile is a mossy trim, and repeated twenty tiles down a
+              // cliff it reads as a dangling chain rather than a wall.
+              const nearSurface =
+                exposed ||
+                level.get(tx, ty - 2) === Tile.Empty ||
+                level.get(tx, ty - 3) === Tile.Empty;
+              let faces: Faces = '';
+              if (nearSurface) {
+                if (level.get(tx - 1, ty) === Tile.Empty) faces = 'L';
+                if (level.get(tx + 1, ty) === Tile.Empty) faces = faces === 'L' ? 'LR' : 'R';
+              }
+              ctx.drawImage(this.tiles.faced_(exposed ? 'top' : 'deep', faces), x, y);
+              break;
+            }
             if (this.flatTiles) {
               ctx.fillStyle = exposed ? THEME.body : THEME.bodyDeep;
               ctx.fillRect(x, y, TILE, TILE);
@@ -212,18 +245,18 @@ export class Renderer {
                 ctx.fillRect(x, y, TILE, px(3));
               }
             } else {
-              ctx.drawImage(this.tiles.get(exposed ? 'top' : 'deep', tx, ty), x, y);
+              ctx.drawImage((this.tiles as TileBank).get(exposed ? 'top' : 'deep', tx, ty), x, y);
             }
             break;
           }
           case Tile.SlopeR:
-            ctx.drawImage(this.tiles.get('slopeR', tx, ty), x, y);
+            ctx.drawImage(this.tileFor('slopeR', tx, ty), x, y);
             break;
           case Tile.SlopeL:
-            ctx.drawImage(this.tiles.get('slopeL', tx, ty), x, y);
+            ctx.drawImage(this.tileFor('slopeL', tx, ty), x, y);
             break;
           case Tile.Breakable: {
-            ctx.drawImage(this.tiles.get('breakable', tx, ty), x, y);
+            ctx.drawImage(this.tileFor('breakable', tx, ty), x, y);
             const fuse = world.fuseAt(tx, ty);
             if (fuse !== null) {
               // Telegraph the collapse: cracks widen as the fuse burns.
@@ -247,6 +280,77 @@ export class Renderer {
             break;
         }
       }
+    }
+  }
+
+  private tileFor(
+    kind: 'top' | 'deep' | 'slopeR' | 'slopeL' | 'breakable',
+    tx: number,
+    ty: number,
+  ): HTMLCanvasElement {
+    return this.tiles instanceof AtlasTiles
+      ? this.tiles.get(kind)
+      : this.tiles.get(kind, tx, ty);
+  }
+
+  /**
+   * Creatures, animated in place.
+   *
+   * They break the palette's one-hazard-colour rule on purpose: a character is
+   * read as dangerous by being a character, which is a stronger signal than any
+   * hue. The pulsing mark beneath keeps them inside the same visual language
+   * anyway, so a glance still parses them as "do not touch".
+   */
+  private drawEnemies(world: World, camX: number, camY: number): void {
+    const ctx = this.ctx;
+    for (const e of world.level.enemies) {
+      const sx = e.x - camX;
+      if (sx < -px(40) || sx > VIEW_W + px(40)) continue;
+      const sy = e.y - camY;
+
+      const pulse = 0.35 + 0.25 * Math.sin(world.timeMs / 260 + e.x);
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = THEME.hazard;
+      ctx.fillRect(sx - px(7), sy - px(1), px(14), px(2));
+      ctx.globalAlpha = 1;
+
+      const frames = enemyFrames(e.kind as EnemyKind);
+      const frame = frames[Math.floor(world.timeMs / 160) % frames.length]!;
+      const o = enemyDrawOrigin(e.kind as EnemyKind, sx, sy);
+      drawFrame(ctx, frame, o.x, o.y);
+    }
+  }
+
+  /**
+   * A grove: the tileset's dead tree at two parallax depths, with a moon fixed
+   * in the sky. Positions come from the level seed, so the same track always
+   * grows the same trees.
+   */
+  private drawGrove(camX: number, camY: number): void {
+    const ctx = this.ctx;
+    const moon = frameRect('moon0');
+    if (moon !== undefined) {
+      drawFrame(ctx, 'moon0', VIEW_W * 0.74 - camX * 0.04, px(24) - camY * 0.03);
+    }
+    if (frameRect('tree') === undefined) return;
+
+    for (const layer of [
+      { factor: 0.22, spacing: px(150), alpha: 0.5, scale: 0.7, base: px(214) },
+      { factor: 0.45, spacing: px(190), alpha: 0.85, scale: 1, base: px(236) },
+    ]) {
+      const img = (this.tiles as AtlasTiles).prop('tree', layer.scale);
+      const ox = camX * layer.factor;
+      const oy = clamp((camY - px(300)) * layer.factor * 0.12, -px(20), px(20));
+      const first = Math.floor((ox - img.width) / layer.spacing);
+      const last = Math.ceil((ox + VIEW_W) / layer.spacing);
+      ctx.globalAlpha = layer.alpha;
+      for (let i = first; i <= last; i++) {
+        const jitter = ((Math.imul(i, 2654435761) >>> 0) % 1000) / 1000;
+        const x = i * layer.spacing - ox + jitter * px(30);
+        const y = layer.base - img.height - oy + jitter * px(14);
+        ctx.drawImage(img, Math.round(x), Math.round(y));
+      }
+      ctx.globalAlpha = 1;
     }
   }
 
