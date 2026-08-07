@@ -39,7 +39,7 @@ to win on and they stay in the session. Two leaderboards: **Fastest** and **Most
 | Collision | Living players are ghosts; **only corpses are solid** |
 | Levels | Procedurally stitched from a hand-authored segment library |
 | Orientation | Portrait — held upright, game edge to edge, no on-screen buttons |
-| Art | Reference sprite sheets, 960×1200 internal (SCALE 3) |
+| Art | Reference sprite sheets, 480×(device) internal at SCALE 3 |
 
 ### Why non-solid players is the most important decision
 
@@ -153,7 +153,7 @@ of something that desaturated does nothing. Kits replace the colour and keep onl
 shading, so a garment stays a garment. See the README for how.
 
 Resolution is a single constant, `SCALE`. The **field of view is a fixed tile count
-ACROSS — 12 — at every scale, on every device, in both orientations**. No player may ever
+ACROSS — 10 — at every scale, on every device, in both orientations**. No player may ever
 see further ahead than another, which in a race is a fairness requirement rather than a
 preference.
 
@@ -167,19 +167,32 @@ That does mean vertical field of view varies between devices, and that is the ri
 to give up. This is a horizontal race: what one player can see of the track *ahead* is a
 fairness question, and how much sky sits above them is not.
 
-The count came down 30 → 20 → 14 → 12 as the game moved to portrait and then chased a
+The count came down 30 → 20 → 14 → 12 → 10 as the game moved to portrait and then chased a
 readable character. At 390 CSS pixels of phone, 20 tiles is a 19px tile and a runner 14px
-wide — someone you can lose track of on the thing you are meant to be watching. 12 is a
-32px tile and a runner of 24.
+wide — someone you can lose track of on the thing you are meant to be watching. 10 is a
+39px tile and a runner of 29.
 
-Zooming in is paid for in look-ahead, and look-ahead is the thing a runner cannot be short
-of: the anchor that bought 1.4s of warning at 30 tiles buys 0.55s at 12, against ~0.4s of
-touch latency and reaction. `cameraAnchor` (0.28 → 0.18) and `cameraLookAhead` together
-claw it back to ~0.84s — the runner sits further left, and the camera pushes further ahead
-the faster he goes, which spends the compensation exactly where the shortage bites.
+**Look-ahead is what that costs, and it cannot be conjured back.** The most track that can
+ever be ahead of the runner is the viewport minus where he stands in it. 30 tiles gave
+1.37s of warning at top speed; 10 gives 0.46s, against roughly 0.35s of touch latency and
+reaction. Speed eating your warning is the deal the speed model makes on purpose — but it
+is why the tile count cannot keep falling, and the next step down should be felt on a real
+phone before it is taken.
+
+An earlier version of this document claimed those figures were far healthier. They weren't:
+the sums added an absolute forward camera push to the viewport width, as if the push
+created track rather than moving the runner across the same track. It did move him — off
+the left edge. Which is the next paragraph.
+
+**Where the runner sits is two fractions of the viewport, never a pixel offset.** He rests
+at 0.26 across and slides to 0.14 flat out. It used to be one anchor plus an absolute push
+in pixels, and that push had no idea how wide the viewport was: every zoom made it a larger
+share of the screen, until at 12 tiles it put him 184px *past* the left edge at top speed —
+invisible exactly when you most need to see him, and shipped that way. As fractions, he
+cannot leave the screen however far the view zooms, and the harness now asserts it.
 
 The runner also sits **low** in the frame, not centred. A viewport that fills a phone is
-~26 tiles tall against a playable band about half that, and centring him spent the whole
+~22 tiles tall against a playable band about half that, and centring him spent the whole
 bottom of the screen on earth nobody can reach. Everything worth seeing is above the ground
 line: jumps, hazards, and the corpse staircase, which climbs.
 
@@ -189,7 +202,7 @@ cost nothing — everything above the track is clipped sky and everything below 
 flat.
 
 `SCALE = 3` was chosen by measuring phones, not by taste, and the zoom vindicated it twice
-over: at 576×1249 the buffer is 0.72 Mpx, small enough that **every** phone in the bench
+over: at 480×1041 the buffer is 0.50 Mpx, small enough that **every** phone in the bench
 upscales it — including the budget 720p Android that once threw away 44% of what it had
 just rendered — and a 4× CPU throttle no longer costs anything measurable.
 

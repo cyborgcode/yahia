@@ -70,13 +70,14 @@ export const T = {
   /**
    * Player's resting position across the viewport, 0..1 from the left.
    *
-   * Lowered every time the viewport has narrowed — 30 tiles to 20 to 14 to 12.
-   * Look-ahead is what zooming in actually costs you: at 0.28 of a 30-tile view
-   * you saw ~1.4s of track at top speed, and the same fraction of 12 tiles is
-   * 0.55s, against ~0.4s of touch latency plus reaction. Sitting the runner
-   * further left buys it back.
+   * Look-ahead is what zooming in costs you, and it cannot be conjured back:
+   * the most track that can ever be ahead of the runner is the viewport minus
+   * wherever he stands in it. At 30 tiles that was 1.37s at top speed; at 10 it
+   * is 0.46s, against ~0.35s of touch latency plus reaction. Going fast is
+   * meant to eat your warning — that is the deal the speed model makes — but it
+   * is why the tile count cannot keep falling forever.
    */
-  cameraAnchor: 0.18,
+  cameraAnchor: 0.26,
   /**
    * Where the runner sits down the viewport, 0..1 from the top.
    *
@@ -89,12 +90,18 @@ export const T = {
    */
   cameraVerticalAnchor: 0.64,
   /**
-   * Extra look-ahead at max speed, in pixels. Raised with each zoom: the anchor
-   * alone cannot pay for a narrower view, because it costs you sight of the
-   * track behind, and this only spends where the shortage actually bites —
-   * flat out, where the warning is thinnest. Together they restore ~0.84s.
+   * Where the runner sits flat out. Same units as `cameraAnchor`, and always
+   * smaller: going fast slides him left, which is what buys the extra warning.
+   *
+   * This replaced an absolute `cameraLookAhead` in pixels, which was a trap. It
+   * pushed the camera forward without knowing how wide the viewport was, so
+   * every zoom made it a bigger fraction of the screen — and once it passed
+   * `VIEW_W * cameraAnchor` the runner went off the left edge entirely. At 12
+   * tiles he was 184px past it at top speed: invisible exactly when you most
+   * need to see him. Expressed as a fraction, the runner cannot leave the
+   * screen no matter how far the view zooms.
    */
-  cameraLookAhead: px(96),
+  cameraAnchorFast: 0.14,
   cameraSmooth: 9,
 };
 
@@ -121,6 +128,6 @@ export const TUNER_RANGES: Partial<Record<keyof Tuning, [number, number]>> = {
   slopeDecel: [0, px(1200)],
   slideSlopeMul: [1, 3],
   cameraAnchor: [0.1, 0.6],
+  cameraAnchorFast: [0.05, 0.5],
   cameraVerticalAnchor: [0.3, 0.85],
-  cameraLookAhead: [0, px(160)],
 };

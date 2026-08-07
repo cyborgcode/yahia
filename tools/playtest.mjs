@@ -136,6 +136,32 @@ await sleep(1000);
 const ran = await state();
 check('auto-runs forward', ran.x > start.x + px(60), `moved ${Math.round(ran.x - start.x)}px in 1s`);
 
+// --- the runner is on the screen, at every speed ----------------------------
+// The camera slides him left as he speeds up, to buy warning of what's coming.
+// That was an absolute pixel push, so each time the viewport narrowed it became
+// a bigger fraction of it, and at 12 tiles it put him 184px off the left edge at
+// top speed — invisible exactly when you most need to see him. Nothing here
+// noticed, because nothing here looked.
+const framing = await page.evaluate(async () => {
+  const w = window.yahia;
+  const view = document.querySelector('#game').width;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const out = [];
+  for (const speed of [w.player.vx, 900]) {
+    for (let i = 0; i < 90; i++) {
+      w.player.vx = speed;
+      await sleep(16);
+    }
+    out.push({ vx: Math.round(w.player.vx), frac: (w.player.x - w.camX) / view });
+  }
+  return out;
+});
+check(
+  'the runner stays on screen at every speed',
+  framing.every((f) => f.frac > 0.04 && f.frac < 0.9),
+  framing.map((f) => `${f.vx} → ${(f.frac * 100).toFixed(0)}% across`).join(', '),
+);
+
 // --- jump ------------------------------------------------------------------
 await page.evaluate(() => window.yahia.player.spawn(window.yahia.level.checkpoints[0].x, window.yahia.level.checkpoints[0].y));
 await sleep(300);

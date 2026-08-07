@@ -214,7 +214,9 @@ export class World {
       0,
       1,
     );
-    const x = this.player.x - VIEW_W * T.cameraAnchor + speedT * T.cameraLookAhead;
+    // Both ends are fractions of the viewport, so the runner is always on it.
+    const anchor = T.cameraAnchor + (T.cameraAnchorFast - T.cameraAnchor) * speedT;
+    const x = this.player.x - VIEW_W * anchor;
     const y = this.player.y + this.player.h / 2 - VIEW_H * T.cameraVerticalAnchor;
     return [x, y];
   }

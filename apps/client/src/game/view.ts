@@ -8,17 +8,19 @@ import { px } from './scale';
  * a race is a fairness requirement rather than a preference. Scale buys detail,
  * never reach.
  *
- * It was 30 across when the game was landscape, then 20, then 14. At 390 CSS
- * pixels of phone, 12 is a 32px tile and a runner 24px wide — roughly twice the
- * size he was two passes ago, which is the whole point of this number.
+ * It was 30 across when the game was landscape, then 20, 14, 12. At 390 CSS
+ * pixels of phone, 10 is a 39px tile and a runner 29px wide — two and a half
+ * times the size he was in the first portrait build.
  *
- * Zooming in is paid for in look-ahead, and this is about as far as it can go:
- * the anchor that bought 1.4s of warning at 30 tiles buys 0.55s at 12, against
- * roughly 0.4s of touch latency and reaction. `cameraAnchor` and
- * `cameraLookAhead` claw it back to ~0.84s by sitting the runner further left
- * and pushing the camera ahead harder the faster he goes.
+ * Zooming in is paid for in look-ahead, and the payment cannot be avoided: the
+ * most track that can ever be ahead of the runner is the viewport minus where
+ * he stands in it. 30 tiles gave 1.37s of warning at top speed; 10 gives 0.46s,
+ * against roughly 0.35s of touch latency and reaction. That is thin on purpose
+ * — the speed model is meant to trade reaction time for pace — but it is close
+ * enough to the floor that the next step down should be felt on a real phone
+ * before it is taken, not reasoned about here.
  */
-const TILES_ACROSS = 12;
+const TILES_ACROSS = 10;
 
 export const VIEW_W = px(16 * TILES_ACROSS);
 
@@ -44,10 +46,11 @@ export const VIEW_W = px(16 * TILES_ACROSS);
  * The floor exists for landscape, not for portrait. Turned on its side a phone
  * asks for a 5-tile-tall window, which is not a view of a platformer; clamping
  * pillarboxes it instead, which is the right answer for an orientation this
- * isn't built around. It is set low enough that every upright device — tablets
- * included, at about 1:1.5 — lands above it and fits exactly.
+ * isn't built around. It has to sit below what the SQUAREST upright device asks
+ * for, or it clips them instead — a 4:3 tablet wants about 213, so anything
+ * higher puts bars back on exactly the screens that had none.
  */
-const MIN_H = px(260);
+const MIN_H = px(200);
 const MAX_H = px(600);
 
 function safeAspect(): number {

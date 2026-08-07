@@ -23,9 +23,9 @@ npm run bench        # mobile cost check: wasted pixels + throttled frame rate
 ```
 
 **This is a mobile game.** Phones held **upright** are the target, desktop is incidental.
-The viewport is **12 tiles wide on every device and as tall as the screen it lands on**, so
+The viewport is **10 tiles wide on every device and as tall as the screen it lands on**, so
 it reaches all four edges of any upright phone or tablet with no letterbox and no controls
-taking up room. Landscape still plays, pillarboxed, and sees exactly the same 12 tiles.
+taking up room. Landscape still plays, pillarboxed, and sees exactly the same 10 tiles.
 
 ## Controls
 
@@ -57,7 +57,14 @@ jump can be held together.
 
 Speed is the resource. Base speed is what you drift back to; everything above it is
 earned on slopes and spent on gaps. Going fast also *reduces* your look-ahead, so the
-camera gives you less reaction time the better you're doing.
+camera gives you less reaction time the better you're doing — 0.79s of warning at base
+speed, 0.46s flat out, against roughly 0.35s of touch latency plus reaction.
+
+**Both ends of that are fractions of the viewport, never pixels.** They used to be an
+anchor plus an absolute forward push, and that push didn't know how wide the screen was:
+every zoom made it a bigger share of it, until at 10 tiles it would have put the runner
+184px past the left edge at top speed — invisible exactly when you most need to see him.
+`npm run playtest` now asserts he is on screen at every speed, because nothing did before.
 
 ## The character
 
@@ -188,7 +195,7 @@ ever deals with a single number. See [`physics.ts`](apps/client/src/game/physics
 Still not PixiJS: 60fps unthrottled and 60fps at a 4× CPU throttle, and everything
 renderer-shaped is behind one module if that stops being true.
 
-Zooming in paid for itself twice: at 576×1249 the buffer is 0.72 Mpx, small enough that
+Zooming in paid for itself twice: at 480×1041 the buffer is 0.50 Mpx, small enough that
 every phone in `npm run bench` — including the budget 720p Android that once threw away 44%
 of what it rendered — now *upscales* it. Fewer pixels, and none of them wasted. A 4× CPU
 throttle costs nothing measurable any more.
@@ -221,7 +228,7 @@ never see each other. Rooms belong on **Cloudflare Durable Objects**, where
 
 ## Status
 
-Verified by `npm run playtest` (21/21 checks, real browser, real build):
+Verified by `npm run playtest` (22/22 checks, real browser, real build):
 
 - Tracks generate, vary by seed, and are byte-identical for the same seed
 - Auto-run, jump, slide, stand-up, respawn, checkpoints
