@@ -99,9 +99,9 @@ numbers are found by dragging them while playing — not by editing a file and r
 apps/client/src/
   core/     rng.ts (seeded mulberry32) · loop.ts (fixed timestep) · input.ts
   game/     tuning · tiles · segments · level · physics · player · world
-  render/   renderer · hud · palette
+  render/   renderer · hud · palette · sprites · tileart
   ui/       tuner
-tools/      playtest.mjs · bench.mjs · spritesheet.mjs · shot.mjs · rig.py
+tools/      playtest · bench · spritesheet · shot · slice_sheets.py
 ```
 
 **Levels are stitched, not noise-generated.** A hand-authored library of challenge
@@ -117,14 +117,19 @@ Android is exactly the bug that surfaces as "one player's map has a wall in it."
 all answer one question — *what is the surface Y under this point* — so the player only
 ever deals with a single number. See [`physics.ts`](apps/client/src/game/physics.ts).
 
-**Rendering is Canvas2D into a 1920×1080 backbuffer,** nearest-neighbour upscaled.
-Deliberately not PixiJS yet: with placeholder art there is nothing for WebGL to
-accelerate, and this removes all engine setup risk. Everything renderer-shaped is behind
-one module, so swapping in Pixi when real atlases land is contained.
+**Rendering is Canvas2D into a SCALE-derived backbuffer,** nearest-neighbour upscaled.
+Still not PixiJS: it holds 60fps at a 4× CPU throttle, and everything renderer-shaped is
+behind one module if that stops being true.
+
+**Anything static is baked once, never drawn per frame.** Tile textures, backdrop towers
+and the sky all live in offscreen canvases. This is not premature — two full-screen
+gradients rebuilt every frame cost 20.6fps against 60.3fps on a throttled phone profile,
+and `npm run bench` reports cost per draw stage by elimination so the next one is
+one command away.
 
 ## Hosting
 
-Client deploys to **Vercel** as a static bundle (`vercel.json` is set up; ~25 KB gzipped).
+Client deploys to **Vercel** as a static bundle (`vercel.json` is set up; ~29 KB JS + a 19 KB atlas).
 
 The multiplayer rooms will **not** live on Vercel. Its WebSocket support (public beta,
 June 2026) pins connections to an instance with no cross-instance broadcast and a ~5
@@ -143,5 +148,5 @@ Verified by `npm run playtest` (15/15 checks, real browser, real build):
 
 ## Not built yet
 
-Networking, rooms, ghosts, scoring, real art, audio, the finish-line leaderboard.
+Networking, rooms, ghosts, scoring, audio, the finish-line leaderboard.
 See [DESIGN.md](DESIGN.md) for where it's going.
