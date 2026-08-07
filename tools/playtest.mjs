@@ -55,14 +55,14 @@ const state = () =>
 
 // --- level built sanely ----------------------------------------------------
 const start = await state();
-check('level generated', start.levelW > 4000 && start.segments > 20,
+check('level generated', start.levelW > 8000 && start.segments > 20,
   `${start.segments} segments, ${start.levelW}px, ${start.checkpoints} checkpoints`);
 check('goal placed', start.goalX > 0, `goalX=${start.goalX}`);
 
 // --- auto-run --------------------------------------------------------------
 await sleep(1000);
 const ran = await state();
-check('auto-runs forward', ran.x > start.x + 120, `moved ${Math.round(ran.x - start.x)}px in 1s`);
+check('auto-runs forward', ran.x > start.x + 240, `moved ${Math.round(ran.x - start.x)}px in 1s`);
 
 // --- jump ------------------------------------------------------------------
 await page.evaluate(() => window.yahia.player.spawn(window.yahia.level.checkpoints[0].x, window.yahia.level.checkpoints[0].y));
@@ -72,7 +72,7 @@ await page.keyboard.down('Space');
 await sleep(120);
 const midJump = await state();
 await page.keyboard.up('Space');
-check('jump lifts the player', midJump.y < beforeJump.y - 20,
+check('jump lifts the player', midJump.y < beforeJump.y - 40,
   `rose ${Math.round(beforeJump.y - midJump.y)}px`);
 await sleep(600);
 
@@ -80,11 +80,11 @@ await sleep(600);
 await page.keyboard.down('ArrowDown');
 await sleep(200);
 const sliding = await state();
-check('slide halves the hitbox', sliding.h === 20 && sliding.sliding, `h=${sliding.h}`);
+check('slide halves the hitbox', sliding.h === 40 && sliding.sliding, `h=${sliding.h}`);
 await page.keyboard.up('ArrowDown');
 await sleep(300);
 const stood = await state();
-check('stands back up', stood.h === 40, `h=${stood.h}`);
+check('stands back up', stood.h === 80, `h=${stood.h}`);
 
 // --- the momentum claim: sliding a slope banks speed ------------------------
 // This is the design's central mechanical promise. If sliding a descent does
@@ -97,10 +97,10 @@ async function placeOnSlope() {
       w.level.placed.find((p) => p.name === 'descent') ??
       w.level.placed.find((p) => p.name === 'stairs');
     if (!seg) return false;
-    const tx = Math.floor(seg.x / 32) + 1;
+    const tx = Math.floor(seg.x / 64) + 1;
     let ty = 0;
     while (ty < w.level.h && w.level.get(tx, ty) === 0) ty++;
-    w.player.spawn(tx * 32 + 4, ty * 32);
+    w.player.spawn(tx * 64 + 8, ty * 64);
     return true;
   });
 }
@@ -136,8 +136,8 @@ if (await placeOnSlope()) {
   const sliding = await peakSpeedOverSlope(true);
   check('sliding a descent out-runs running it', sliding > running + 10,
     `slide peak ${Math.round(sliding)} vs run peak ${Math.round(running)}`);
-  check('slide banks speed above base', sliding > 300 * 1.1,
-    `peak ${Math.round(sliding)} vs base 300`);
+  check('slide banks speed above base', sliding > 600 * 1.1,
+    `peak ${Math.round(sliding)} vs base 600`);
 } else {
   check('descent segment present in track', false, 'no descent/stairs segment generated');
 }
@@ -159,7 +159,7 @@ check('death leaves a body', corpseTest.after > corpseTest.before,
 const standsOnCorpse = await page.evaluate(async () => {
   const w = window.yahia;
   const L = w.level;
-  const TILE = 32;
+  const TILE = 64;
   const { rows } = window.yahiaSprites.SPRITES.corpse;
   const cw = rows[0].length;
   const ch = rows.length;
@@ -184,7 +184,7 @@ const standsOnCorpse = await page.evaluate(async () => {
     w: cw, h: ch, born: w.timeMs, where: 'test',
   };
   w.corpses.push(corpse);
-  w.player.spawn(corpse.x + 6, corpse.y - 8);
+  w.player.spawn(corpse.x + 12, corpse.y - 16);
 
   // Sample the landing frame, not some later one: the runner never stops, so
   // by 350ms it has already crossed a 20px body and moved on.
@@ -226,6 +226,26 @@ for (let i = 0; i < 20; i++) {
   prevX = s.x;
 }
 check('never permanently stalls', stuck < 6, `${stuck}/20 sampled windows without progress`);
+
+// --- frame rate -------------------------------------------------------------
+// 1920x1080 Canvas2D is the real risk of scaling up twice. Headless Chromium on
+// a server is NOT a phone, so this only catches a catastrophic regression —
+// the honest measurement still has to happen on a real device.
+const fps = await page.evaluate(
+  () =>
+    new Promise((resolve) => {
+      let frames = 0;
+      const t0 = performance.now();
+      const tick = () => {
+        frames++;
+        const dt = performance.now() - t0;
+        if (dt < 2000) requestAnimationFrame(tick);
+        else resolve((frames * 1000) / dt);
+      };
+      requestAnimationFrame(tick);
+    }),
+);
+check('sustains 60fps headless', fps > 50, `${fps.toFixed(0)} fps at 1920x1080 (not a phone)`);
 
 const final = await state();
 check('no runtime errors', errors.length === 0, errors.slice(0, 3).join(' | ') || 'clean');

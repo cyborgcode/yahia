@@ -161,7 +161,7 @@ export function buildLevel(seed: number, segmentCount = 24): Level {
     // Checkpoint every third segment, on the ground at its left edge.
     if (index % 3 === 0) {
       const surfaceRow = offset + seg.entry;
-      level.checkpoints.push({ x: cursor * TILE + 8, y: surfaceRow * TILE });
+      level.checkpoints.push({ x: cursor * TILE + 16, y: surfaceRow * TILE });
     }
 
     cursor += segmentWidth(seg);

@@ -51,18 +51,24 @@ camera gives you less reaction time the better you're doing.
 YAHIA is drawn in [`sprites.ts`](apps/client/src/render/sprites.ts) as ASCII pixel data —
 dark curly hair, cream tee, pink shorts, navy sneakers, after the TUNISIA_HERO reference.
 
-Authored at the game's own resolution (40×48) rather than downscaled from reference art —
-detail that survives downscaling has to be drawn for the target size directly. Drawn in
-**right-facing profile**: an auto-runner only travels one way, and a front-facing figure
-with legs splayed sideways reads as a star jump however you animate it.
+Authored at the game's own resolution (80×96) rather than downscaled from reference art.
+Drawn in **right-facing profile**: an auto-runner only travels one way, and a front-facing
+figure with legs splayed sideways reads as a star jump however you animate it.
+
+Frames come out of [`tools/rig.py`](tools/rig.py), a small rasterizer — limbs are tapered
+capsules, the head is two ellipses — followed by two automatic passes that do the work
+hand-drawn ASCII could not:
+
+- **Outline** on every silhouette edge.
+- **Shading** that lights the top of each region and shadows its underside and right
+  flank, with far-side limbs darkened so depth reads.
+
+Flat fills with no outline were the single biggest gap against the reference art. Anatomy
+was the second: the head is now about a sixth of body height instead of a third.
 
 Eight frames: a 4-frame run cycle (**driven by stride distance, not time**, so footfalls
 stay in step with speed), jump, fall, plus two the reference sheet has no equivalent for —
 **slide**, the game's second verb, and **corpse**, lying flat because a body is a platform.
-
-Limb poses are generated from column spans (`tools/` workflow), which guarantees each rung
-of an arm overlaps the last and touches the shoulder. Hand-counted ASCII produced dashed,
-floating limbs twice before this.
 
 ```bash
 npm run spritesheet   # validates the data and renders a contact sheet PNG
@@ -83,7 +89,7 @@ apps/client/src/
   game/     tuning · tiles · segments · level · physics · player · world
   render/   renderer · hud · palette
   ui/       tuner
-tools/      playtest.mjs · spritesheet.mjs · shot.mjs
+tools/      playtest.mjs · spritesheet.mjs · shot.mjs · rig.py
 ```
 
 **Levels are stitched, not noise-generated.** A hand-authored library of challenge
@@ -99,14 +105,14 @@ Android is exactly the bug that surfaces as "one player's map has a wall in it."
 all answer one question — *what is the surface Y under this point* — so the player only
 ever deals with a single number. See [`physics.ts`](apps/client/src/game/physics.ts).
 
-**Rendering is Canvas2D into a 960×540 backbuffer,** nearest-neighbour upscaled.
+**Rendering is Canvas2D into a 1920×1080 backbuffer,** nearest-neighbour upscaled.
 Deliberately not PixiJS yet: with placeholder art there is nothing for WebGL to
 accelerate, and this removes all engine setup risk. Everything renderer-shaped is behind
 one module, so swapping in Pixi when real atlases land is contained.
 
 ## Hosting
 
-Client deploys to **Vercel** as a static bundle (`vercel.json` is set up; ~12 KB gzipped).
+Client deploys to **Vercel** as a static bundle (`vercel.json` is set up; ~25 KB gzipped).
 
 The multiplayer rooms will **not** live on Vercel. Its WebSocket support (public beta,
 June 2026) pins connections to an instance with no cross-instance broadcast and a ~5
@@ -116,11 +122,11 @@ never see each other. Rooms belong on **Cloudflare Durable Objects**, where
 
 ## Status
 
-Verified by `npm run playtest` (14/14 checks, real browser, real build):
+Verified by `npm run playtest` (15/15 checks, real browser, real build):
 
 - Tracks generate, vary by seed, and are byte-identical for the same seed
 - Auto-run, jump, slide, stand-up, respawn, checkpoints
-- **Sliding a descent peaks at 600 vs 389 running it** — the momentum model pays
+- **Sliding a descent peaks at 1200 vs 777 running it** — the momentum model pays
 - Death leaves a body; bodies are solid platforms; martyr credit is recorded
 
 ## Not built yet

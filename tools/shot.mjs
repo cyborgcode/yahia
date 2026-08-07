@@ -1,7 +1,7 @@
 /**
  * Presentation screenshots at a realistic device pixel ratio.
  *
- * A phone renders the 960x540 buffer into ~2500 device pixels, so capturing at
+ * A phone renders the 1920x1080 buffer into ~2500 device pixels, so capturing at
  * deviceScaleFactor 1 downsamples the art and shows something nobody will ever
  * see. Shoot at DPR 3.
  */
@@ -31,7 +31,7 @@ const placed = await page.evaluate(() => {
     L.placed.find((p) => p.name === 'meatgrinder') ??
     L.placed.find((p) => p.name === 'spikes') ??
     L.placed[8];
-  const base = Math.floor(seg.x / 32);
+  const base = Math.floor(seg.x / 64);
   for (let dx = 14; dx < 48; dx++) {
     const tx = base - dx;
     if (tx < 2) break;
@@ -39,7 +39,7 @@ const placed = await page.evaluate(() => {
     while (ty < L.h && L.get(tx, ty) === 0) ty++;
     if (ty >= L.h || ty < 3) continue;
     if (L.get(tx, ty - 1) !== 0 || L.get(tx, ty - 2) !== 0) continue;
-    w.player.spawn(tx * 32, ty * 32);
+    w.player.spawn(tx * 64, ty * 64);
     return { tx, ty, seg: seg.name };
   }
   return null;
@@ -54,8 +54,8 @@ await page.evaluate(() => {
   const feet = w.player.y + w.player.h;
   for (let i = 0; i < 5; i++) {
     w.corpses.push({
-      x: w.player.x + 90 + i * 54, y: feet - 30 - i * 24,
-      w: 40, h: 13, born: w.timeMs - i * 2600, where: 'scene',
+      x: w.player.x + 180 + i * 108, y: feet - 60 - i * 48,
+      w: 80, h: 26, born: w.timeMs - i * 2600, where: 'scene',
     });
   }
 });

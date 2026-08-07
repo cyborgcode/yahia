@@ -33,7 +33,7 @@ function towerRow(
 }
 
 /**
- * Canvas2D into a 960x540 backbuffer, then nearest-neighbour upscale.
+ * Canvas2D into a 1920x1080 backbuffer, then nearest-neighbour upscale.
  *
  * Deliberately not PixiJS yet: with placeholder art there is nothing for WebGL
  * to accelerate, and this removes all engine setup risk from the one question
@@ -99,8 +99,8 @@ export class Renderer {
    */
   private buildBackdrop(seed: number, levelWidth: number): void {
     const rng = new Rng(seed ^ 0x9e3779b9);
-    this.farTowers = towerRow(rng, levelWidth * 0.2, 92, 410, [28, 68], [60, 192]);
-    this.nearTowers = towerRow(rng, levelWidth * 0.45, 128, 456, [40, 104], [48, 140]);
+    this.farTowers = towerRow(rng, levelWidth * 0.2, 184, 820, [56, 136], [120, 384]);
+    this.nearTowers = towerRow(rng, levelWidth * 0.45, 256, 912, [80, 208], [96, 280]);
     this.builtForSeed = seed;
   }
 
@@ -109,7 +109,7 @@ export class Renderer {
     ctx.fillStyle = color;
     const ox = Math.round(camX * factor);
     // Damped and clamped, so the horizon stays put even in a long fall.
-    const oy = Math.round(clamp((camY - 600) * factor * 0.12, -40, 40));
+    const oy = Math.round(clamp((camY - 1200) * factor * 0.12, -80, 80));
     for (const t of towers) {
       const x = t.x - ox;
       if (x + t.w < 0 || x > VIEW_W) continue;
@@ -140,7 +140,7 @@ export class Renderer {
             ctx.fillRect(x, y, TILE, TILE);
             if (exposed) {
               ctx.fillStyle = P.terrainLip;
-              ctx.fillRect(x, y, TILE, 6);
+              ctx.fillRect(x, y, TILE, 12);
             }
             break;
           }
@@ -155,31 +155,31 @@ export class Renderer {
             ctx.fillStyle = P.breakable;
             ctx.fillRect(x, y, TILE, TILE);
             ctx.fillStyle = P.breakableLip;
-            ctx.fillRect(x, y, TILE, 4);
+            ctx.fillRect(x, y, TILE, 8);
             if (fuse !== null) {
               // Telegraph the collapse: cracks widen as the fuse burns.
               ctx.fillStyle = P.terrainDeep;
               const n = 1 + Math.floor(fuse * 4);
-              for (let i = 0; i < n; i++) ctx.fillRect(x + 4 + i * 6, y + 6, 2, TILE - 8);
+              for (let i = 0; i < n; i++) ctx.fillRect(x + 8 + i * 12, y + 12, 4, TILE - 16);
             }
             break;
           }
           case Tile.Spike:
             ctx.fillStyle = P.hazard;
             for (let i = 0; i < 4; i++) {
-              const sx = x + i * 8;
+              const sx = x + i * 16;
               ctx.beginPath();
               ctx.moveTo(sx, y + TILE);
-              ctx.lineTo(sx + 4, y + TILE - 18);
-              ctx.lineTo(sx + 8, y + TILE);
+              ctx.lineTo(sx + 8, y + TILE - 36);
+              ctx.lineTo(sx + 16, y + TILE);
               ctx.closePath();
               ctx.fill();
             }
             break;
           case Tile.Goal:
             ctx.fillStyle = P.goal;
-            ctx.fillRect(x + 12, y - TILE * 2, 6, TILE * 3);
-            ctx.fillRect(x + 18, y - TILE * 2, 16, 12);
+            ctx.fillRect(x + 24, y - TILE * 2, 12, TILE * 3);
+            ctx.fillRect(x + 36, y - TILE * 2, 32, 24);
             break;
           default:
             break;
@@ -205,7 +205,7 @@ export class Renderer {
     ctx.fill();
 
     ctx.strokeStyle = P.terrainLip;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 8;
     ctx.beginPath();
     if (risingRight) {
       ctx.moveTo(x, y + TILE);
@@ -222,10 +222,10 @@ export class Renderer {
     ctx.fillStyle = P.checkpoint;
     for (const cp of world.level.checkpoints) {
       const x = cp.x - camX;
-      if (x < -16 || x > VIEW_W + 16) continue;
+      if (x < -32 || x > VIEW_W + 32) continue;
       ctx.globalAlpha = cp.x <= world.player.x ? 1 : 0.35;
-      ctx.fillRect(x, cp.y - camY - 36, 4, 36);
-      ctx.fillRect(x + 4, cp.y - camY - 36, 14, 10);
+      ctx.fillRect(x, cp.y - camY - 72, 8, 72);
+      ctx.fillRect(x + 8, cp.y - camY - 72, 28, 20);
     }
     ctx.globalAlpha = 1;
   }
@@ -247,8 +247,9 @@ export class Renderer {
 
       ctx.globalAlpha = alpha;
       this.sprites.draw(ctx, 'corpse', x, y);
-      // The body is art; this line is the contract. Opacity means solidity, and
-      // a lit top edge is what says "stand here" at a glance.
+      // The body is art; this line is the contract. It spans the full collision
+      // box, not the silhouette, so the landable edges are never guessed at.
+      ctx.globalAlpha = alpha * 0.7;
       ctx.fillStyle = P.corpseEdge;
       ctx.fillRect(x, y, c.w, 2);
       ctx.globalAlpha = 1;
@@ -268,7 +269,7 @@ export class Renderer {
       ctx.globalAlpha = speedT * 0.5;
       ctx.fillStyle = P.playerSash;
       for (let i = 1; i <= 3; i++) {
-        ctx.fillRect(Math.round(x) - i * 14, Math.round(y) + 10 + i * 6, 10 + speedT * 16, 2);
+        ctx.fillRect(Math.round(x) - i * 28, Math.round(y) + 20 + i * 12, 20 + speedT * 32, 4);
       }
       ctx.globalAlpha = 1;
     }
@@ -277,7 +278,7 @@ export class Renderer {
 
     if (p.fastFalling) {
       ctx.fillStyle = P.playerSash;
-      ctx.fillRect(Math.round(x) + 4, Math.round(y) + p.h, p.w - 8, 6);
+      ctx.fillRect(Math.round(x) + 8, Math.round(y) + p.h, p.w - 16, 12);
     }
   }
 }
@@ -286,6 +287,6 @@ export class Renderer {
 function playerFrame(p: World['player']): SpriteName {
   if (p.sliding) return 'slide';
   if (!p.grounded) return p.vy < 0 ? 'jump' : 'fall';
-  const step = Math.floor(p.distance / 18) % RUN_CYCLE.length;
+  const step = Math.floor(p.distance / 36) % RUN_CYCLE.length;
   return RUN_CYCLE[step]!;
 }

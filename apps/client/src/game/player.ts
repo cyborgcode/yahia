@@ -12,12 +12,12 @@ import {
 import { Tile, clamp } from './tiles';
 import { T } from './tuning';
 
-export const PLAYER_W = 24;
-export const PLAYER_H_STAND = 40;
-export const PLAYER_H_SLIDE = 20;
+export const PLAYER_W = 48;
+export const PLAYER_H_STAND = 80;
+export const PLAYER_H_SLIDE = 40;
 
 /** Speed you can never drop below — this is an auto-runner, not a walk. */
-const FLOOR_SPEED = 110;
+const FLOOR_SPEED = 220;
 
 export interface PlayerInput {
   jumpHeld: boolean;
@@ -158,10 +158,10 @@ export class Player {
     this.standingOnBreakable = null;
     if (this.vy >= 0) {
       const feet = this.y + this.h;
-      const snapUp = wasGrounded ? 20 : 12;
-      const snapDown = wasGrounded ? 24 : 0; // stick to descending slopes
+      const snapUp = wasGrounded ? 40 : 24;
+      const snapDown = wasGrounded ? 48 : 0; // stick to descending slopes
       let best: GroundHit | null = null;
-      for (const sx of [this.x + 4, this.x + this.w / 2, this.x + this.w - 4]) {
+      for (const sx of [this.x + 8, this.x + this.w / 2, this.x + this.w - 8]) {
         const hit = groundAt(level, corpses, sx, feet, snapUp, snapDown);
         if (hit !== null && (best === null || hit.y < best.y)) best = hit;
       }
