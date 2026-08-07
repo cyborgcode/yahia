@@ -55,33 +55,37 @@ camera gives you less reaction time the better you're doing.
 
 ## The character
 
-YAHIA is drawn in [`sprites.ts`](apps/client/src/render/sprites.ts) as ASCII pixel data —
-dark curly hair, cream tee, pink shorts, navy sneakers, after the TUNISIA_HERO reference.
-
-Authored at the game's own resolution rather than downscaled from reference art, and
-re-emitted whenever `SCALE` changes.
-Drawn in **right-facing profile**: an auto-runner only travels one way, and a front-facing
-figure with legs splayed sideways reads as a star jump however you animate it.
-
-Frames come out of [`tools/rig.py`](tools/rig.py), a small rasterizer — limbs are tapered
-capsules, the head is two ellipses — followed by two automatic passes that do the work
-hand-drawn ASCII could not:
-
-- **Outline** on every silhouette edge.
-- **Shading** that lights the top of each region and shadows its underside and right
-  flank, with far-side limbs darkened so depth reads.
-
-Flat fills with no outline were the single biggest gap against the reference art. Anatomy
-was the second: the head is now about a sixth of body height instead of a third.
-
-Eight frames: a 4-frame run cycle (**driven by stride distance, not time**, so footfalls
-stay in step with speed), jump, fall, plus two the reference sheet has no equivalent for —
-**slide**, the game's second verb, and **corpse**, lying flat because a body is a platform.
+The runner is the **supplied reference art**, not an approximation of it.
+[`tools/slice_sheets.py`](tools/slice_sheets.py) turns the four sprite sheets — idle, run,
+jump, crouch — into a 19 KB atlas plus a manifest of frame rects and offsets.
 
 ```bash
-npm run spritesheet   # validates the data and renders a contact sheet PNG
-npm run shot          # in-game screenshot at a phone's real pixel ratio
+npm run sprites      # re-slice the sheets into the atlas
+npm run spritesheet  # render a labelled contact sheet of what shipped
 ```
+
+Three things the slicer has to get right:
+
+- **One global bounding box**, shared across all four sheets, rather than trimming each
+  frame to its own content. Per-frame trimming would flatten the run's bob and the jump's
+  arc into a figure that never leaves the floor.
+- **A single ground line**, taken from the idle pose, so every animation's feet land in
+  the same place and the character doesn't hop between states.
+- **The real cycle length.** The run sheet holds *two* twelve-frame cycles; playing all 24
+  would replay the stride twice per loop and read as a stutter. Measured by
+  self-similarity, not eyeballed.
+
+The cycle is driven by **stride distance, not elapsed time**, so footfalls stay in step
+whether you're at base speed or pinned at the cap.
+
+Two poses the sheets don't contain:
+
+- **Slide** — the closest available is the deep crouch, so the *slide hitbox was raised to
+  meet the art* (px(10) → px(14)) rather than the art faked to meet the box. It still
+  clears the one-tile gap the ducker and tunnel segments depend on.
+- **Corpse** — derived by rotating the idle pose onto its back. It's the only pose with a
+  lying body's proportions; a curled crouch rotated is two-thirds as thick as the runner
+  is tall and reads as a boulder.
 
 ## Tuning
 

@@ -54,11 +54,11 @@ await page.evaluate(() => {
   const w = window.yahia;
   const feet = w.player.y + w.player.h;
   const S = window.yahiaScale;
-  const { rows } = window.yahiaSprites.SPRITES.corpse;
+  const [cw, ch] = window.yahiaSprites.corpse;
   for (let i = 0; i < 5; i++) {
     w.corpses.push({
       x: w.player.x + S * 45 + i * S * 27, y: feet - S * 15 - i * S * 12,
-      w: rows[0].length, h: rows.length, born: w.timeMs - i * 2600, where: 'scene',
+      w: cw, h: ch, born: w.timeMs - i * 2600, where: 'scene',
     });
   }
 });

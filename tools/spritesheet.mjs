@@ -15,6 +15,20 @@ const page = await browser.newPage({ viewport: { width: 1100, height: 900 } });
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForTimeout(300);
 
+// The atlas image must be in the DOM for the preview to sample it.
+await page.evaluate(async () => {
+  const { manifest } = window.yahiaSprites;
+  const img = new Image();
+  img.id = 'atlas-preview';
+  const url = [...document.querySelectorAll('script')]
+    .map((s) => s.src)
+    .join(' ');
+  void url;
+  img.src = manifest.imageUrl;
+  document.body.append(img);
+  await img.decode();
+});
+
 const problems = await page.evaluate(() => window.yahiaSprites.validate());
 if (problems.length > 0) {
   console.log('SPRITE PROBLEMS:');
@@ -25,12 +39,11 @@ if (problems.length > 0) {
 
 const dims = await page.evaluate(
   (scale) => {
-    const { SPRITES, PALETTE } = window.yahiaSprites;
-    const names = Object.keys(SPRITES);
-    const cols = 4;
-    // Cells sized from the largest sprite so the sheet adapts to art resolution.
-    const maxW = Math.max(...names.map((n) => SPRITES[n].rows[0].length));
-    const maxH = Math.max(...names.map((n) => SPRITES[n].rows.length));
+    const { manifest } = window.yahiaSprites;
+    const names = Object.keys(manifest.frames);
+    const cols = 6;
+    const maxW = Math.max(...names.map((n) => manifest.frames[n][2]));
+    const maxH = Math.max(...names.map((n) => manifest.frames[n][3]));
     const cellW = (maxW + 6) * scale;
     const cellH = (maxH + 4) * scale + 22;
     const rows = Math.ceil(names.length / cols);
@@ -46,13 +59,14 @@ const dims = await page.evaluate(
     ctx.fillRect(0, 0, c.width, c.height);
     ctx.fillStyle = '#f2e3c4';
     ctx.font = 'bold 16px ui-monospace, monospace';
-    ctx.fillText('YAHIA — RUNNER SPRITES', 12, 22);
+    ctx.fillText('YAHIA — ATLAS FRAMES', 12, 22);
 
+    const atlas = document.querySelector('#atlas-preview');
     names.forEach((name, i) => {
+      const [sx, sy, sw, sh] = manifest.frames[name];
       const cx = (i % cols) * cellW;
       const cy = Math.floor(i / cols) * cellH + 34;
 
-      // Checkerboard so transparency is visible.
       for (let y = 0; y < cellH - 22; y += 8) {
         for (let x = 0; x < cellW; x += 8) {
           ctx.fillStyle = ((x + y) / 8) % 2 === 0 ? '#221a2a' : '#1b1422';
@@ -60,23 +74,13 @@ const dims = await page.evaluate(
         }
       }
 
-      const rows2 = SPRITES[name].rows;
-      const w = rows2[0].length;
-      const h = rows2.length;
-      const ox = cx + Math.floor((cellW - w * scale) / 2);
-      const oy = cy + (cellH - 22 - h * scale);
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < rows2[y].length; x++) {
-          const col = PALETTE[rows2[y][x]];
-          if (!col) continue;
-          ctx.fillStyle = col;
-          ctx.fillRect(ox + x * scale, oy + y * scale, scale, scale);
-        }
-      }
+      const ox = cx + Math.floor((cellW - sw * scale) / 2);
+      const oy = cy + (cellH - 22 - sh * scale);
+      ctx.drawImage(atlas, sx, sy, sw, sh, ox, oy, sw * scale, sh * scale);
 
       ctx.fillStyle = '#8a7c93';
       ctx.font = 'bold 11px ui-monospace, monospace';
-      ctx.fillText(`${name}  ${w}x${h}`, cx + 6, cy + cellH - 8);
+      ctx.fillText(`${name}  ${sw}x${sh}`, cx + 6, cy + cellH - 8);
     });
 
     document.body.innerHTML = '';

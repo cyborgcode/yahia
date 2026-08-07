@@ -5,7 +5,13 @@ import { World } from './game/world';
 import { drawHud } from './render/hud';
 import { Renderer } from './render/renderer';
 import { SCALE } from './game/scale';
-import { SPRITES, SPRITE_PALETTE, validateSprites } from './render/sprites';
+import {
+  ATLAS_MANIFEST,
+  CORPSE_SPRITE_H,
+  CORPSE_SPRITE_W,
+  loadAtlas,
+  validateSprites,
+} from './render/sprites';
 import { createTuner } from './ui/tuner';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
@@ -36,8 +42,8 @@ let showHints = true;
 (window as unknown as { yahiaScale: number }).yahiaScale = SCALE;
 (window as unknown as { yahiaRenderer: Renderer }).yahiaRenderer = renderer;
 (window as unknown as { yahiaSprites: unknown }).yahiaSprites = {
-  SPRITES,
-  PALETTE: SPRITE_PALETTE,
+  manifest: ATLAS_MANIFEST,
+  corpse: [CORPSE_SPRITE_W, CORPSE_SPRITE_H],
   validate: validateSprites,
 };
 
@@ -76,6 +82,10 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') void keepAwake();
 });
 void keepAwake();
+
+// The atlas must be decoded before the first frame: starting the loop without
+// art would render an empty world for however long the image takes.
+await loadAtlas();
 
 startLoop(
   (dt) => world.step(dt, input),

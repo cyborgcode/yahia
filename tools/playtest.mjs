@@ -87,7 +87,7 @@ await sleep(600);
 await page.keyboard.down('ArrowDown');
 await sleep(200);
 const sliding = await state();
-check('slide halves the hitbox', sliding.h === px(10) && sliding.sliding, `h=${sliding.h}`);
+check('slide halves the hitbox', sliding.h === px(14) && sliding.sliding, `h=${sliding.h}`);
 await page.keyboard.up('ArrowDown');
 await sleep(300);
 const stood = await state();
@@ -168,9 +168,7 @@ const standsOnCorpse = await page.evaluate(async () => {
   const w = window.yahia;
   const L = w.level;
   const TILE = window.yahiaScale * 16;
-  const { rows } = window.yahiaSprites.SPRITES.corpse;
-  const cw = rows[0].length;
-  const ch = rows.length;
+  const [cw, ch] = window.yahiaSprites.corpse;
 
   // Two adjacent columns with three clear rows above solid ground: a
   // deterministic pocket of open air wide enough to hang a body in.

@@ -15,6 +15,7 @@
     "playtest": "node tools/playtest.mjs",
     "spritesheet": "node tools/spritesheet.mjs",
     "shot": "node tools/shot.mjs",
-    "bench": "node tools/bench.mjs"
+    "bench": "node tools/bench.mjs",
+    "sprites": "python3 tools/slice_sheets.py"
   }
 }

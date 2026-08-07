@@ -38,7 +38,7 @@ to win on and they stay in the session. Two leaderboards: **Fastest** and **Most
 | Round | Race to a finish line, ~75s, hard 90s cap |
 | Collision | Living players are ghosts; **only corpses are solid** |
 | Levels | Procedurally stitched from a hand-authored segment library |
-| Art | Pixel art, 1440×810 internal (SCALE 3), sun-bleached ruins |
+| Art | Reference sprite sheets, 1440×810 internal (SCALE 3), sun-bleached ruins |
 
 ### Why non-solid players is the most important decision
 

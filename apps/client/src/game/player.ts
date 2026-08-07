@@ -15,7 +15,13 @@ import { T } from './tuning';
 
 export const PLAYER_W = px(12);
 export const PLAYER_H_STAND = px(20);
-export const PLAYER_H_SLIDE = px(10);
+/**
+ * Raised from px(10) when the real crouch art landed: the reference sheets
+ * have no flat slide, and a box half the art's height would have buried the
+ * runner's head in every ceiling. Still clears a one-tile gap, which is what
+ * the ducker and tunnel segments require.
+ */
+export const PLAYER_H_SLIDE = px(14);
 
 /** Speed you can never drop below — this is an auto-runner, not a walk. */
 const FLOOR_SPEED = px(55);
