@@ -20,7 +20,8 @@ function check(name, pass, detail) {
 }
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 844, height: 390 } });
+// Portrait: that is the orientation the game is designed around.
+const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
@@ -29,12 +30,17 @@ page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await sleep(400);
 
-// Every threshold below is expressed in the 480x270 authoring base and scaled,
-// so changing SCALE never invalidates the suite.
+// Every threshold below is expressed in the authoring base and scaled, so
+// changing SCALE never invalidates the suite. The buffer size is read off the
+// canvas rather than restated here — it moved once already, for portrait.
 const SCALE = await page.evaluate(() => window.yahiaScale);
 const px = (base) => base * SCALE;
 const TILE = px(16);
-console.log(`render scale ${SCALE}x — ${px(480)}x${px(270)}, ${TILE}px tiles\n`);
+const BUFFER = await page.evaluate(() => {
+  const c = document.querySelector('#game');
+  return `${c.width}x${c.height}`;
+});
+console.log(`render scale ${SCALE}x — ${BUFFER}, ${TILE}px tiles\n`);
 
 const state = () =>
   page.evaluate(() => {
@@ -270,7 +276,7 @@ const fps = await page.evaluate(
       requestAnimationFrame(tick);
     }),
 );
-check('sustains 60fps headless', fps > 50, `${fps.toFixed(0)} fps at ${px(480)}x${px(270)} (not a phone)`);
+check('sustains 60fps headless', fps > 50, `${fps.toFixed(0)} fps at ${BUFFER} (not a phone)`);
 
 const final = await state();
 check('no runtime errors', errors.length === 0, errors.slice(0, 3).join(' | ') || 'clean');

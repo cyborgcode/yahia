@@ -15,11 +15,11 @@ const { chromium } = await import(process.env.PLAYWRIGHT_PATH ?? 'playwright');
 
 const URL = process.env.URL ?? 'http://127.0.0.1:4173/#seed=yahia';
 
-/** Landscape phones we actually care about, in CSS px and device pixel ratio. */
+/** Portrait phones we actually care about, in CSS px and device pixel ratio. */
 const DEVICES = [
-  { name: 'iPhone 15 (flagship)', w: 852, h: 393, dpr: 3 },
-  { name: 'Pixel 7a (mid)', w: 839, h: 391, dpr: 2.6 },
-  { name: 'Budget Android', w: 740, h: 360, dpr: 2 },
+  { name: 'iPhone 15 (flagship)', w: 393, h: 852, dpr: 3 },
+  { name: 'Pixel 7a (mid)', w: 391, h: 839, dpr: 2.6 },
+  { name: 'Budget Android', w: 360, h: 740, dpr: 2 },
 ];
 
 const browser = await chromium.launch();
@@ -59,11 +59,13 @@ async function fpsAt(throttle, device) {
 const first = await fpsAt(1, DEVICES[0]);
 console.log(`internal buffer: ${first.bufW}x${first.bufH} (${(first.bufW * first.bufH / 1e6).toFixed(2)} Mpx)\n`);
 
-console.log('device pixels actually available (landscape, object-fit: contain):');
+// Portrait sizes the canvas by WIDTH — it fills the screen edge to edge and the
+// thumb pad takes what's left below — so width is what decides sharpness.
+console.log('device pixels actually available (portrait, sized by width):');
 for (const d of DEVICES) {
   const devH = Math.round(d.h * d.dpr);
   const devW = Math.round(d.w * d.dpr);
-  const scale = devH / first.bufH;
+  const scale = devW / first.bufW;
   const verdict =
     scale >= 0.98 ? `upscaled ${scale.toFixed(2)}x — sharp` : `DOWNSCALED ${scale.toFixed(2)}x — ${Math.round((1 - scale * scale) * 100)}% of pixels wasted`;
   console.log(`  ${d.name.padEnd(22)} ${devW}x${devH}  ${verdict}`);

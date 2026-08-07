@@ -22,7 +22,9 @@ npm run playtest     # automated feel + physics harness (needs a preview server)
 npm run bench        # mobile cost check: wasted pixels + throttled frame rate
 ```
 
-**This is a mobile game.** Phones in landscape are the target, desktop is incidental.
+**This is a mobile game.** Phones held **upright** are the target, desktop is incidental.
+The viewport is near-square, so portrait fills the width and hands the space below it to a
+thumb pad; landscape still plays, pillarboxed, and sees exactly the same 20 tiles of track.
 
 ## Controls
 
@@ -36,9 +38,12 @@ npm run bench        # mobile cost check: wasted pixels + throttled frame rate
 Screen halves rather than gesture recognition: a swipe can't be recognised until it has
 moved, and that delay is exactly the latency a platformer can't afford.
 
-In landscape both **bottom corners are under a thumb** for the whole round, so nothing
-lives there: every HUD readout is pinned to the top edge and the tuner button sits in the
-top-right. Multi-touch is tracked per pointer, so slide and jump can be held together.
+The **bottom of the screen is under a thumb** for the whole round, so nothing lives there:
+every HUD readout is pinned to the top edge and the tuner button sits in the top-right. In
+portrait that dead space is the labelled SLIDE/JUMP pad, which lights up on press — the pad
+is a label for a screen half rather than a button, so its lit state is driven from the input
+layer, not `:active`, which would drop the moment a thumb slid off it. Multi-touch is
+tracked per pointer, so slide and jump can be held together.
 
 ## The three techniques
 
@@ -143,14 +148,19 @@ all answer one question — *what is the surface Y under this point* — so the 
 ever deals with a single number. See [`physics.ts`](apps/client/src/game/physics.ts).
 
 **Rendering is Canvas2D into a SCALE-derived backbuffer,** nearest-neighbour upscaled.
-Still not PixiJS: it holds 60fps at a 4× CPU throttle, and everything renderer-shaped is
-behind one module if that stops being true.
+Still not PixiJS: 60fps unthrottled and 52fps at a 4× CPU throttle, and everything
+renderer-shaped is behind one module if that stops being true.
 
-**Anything static is baked once, never drawn per frame.** Tile textures, backdrop towers
+**Anything static is baked once, never drawn per frame.** Tile textures, backdrop trees
 and the sky all live in offscreen canvases. This is not premature — two full-screen
 gradients rebuilt every frame cost 20.6fps against 60.3fps on a throttled phone profile,
 and `npm run bench` reports cost per draw stage by elimination so the next one is
 one command away.
+
+**Nothing is drawn that something else will cover.** Earth below the crust is one rect per
+column rather than tiles, and the sky is painted only down to the deepest earth line in
+view. Together those are worth ~7fps at a 4× throttle on the portrait viewport — enough
+that the taller window costs nothing against the landscape build it replaced.
 
 ## Hosting
 

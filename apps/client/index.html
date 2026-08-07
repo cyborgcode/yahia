@@ -37,6 +37,7 @@
         position: fixed;
         inset: 0;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
         /* Keep the canvas clear of notches and the home indicator. */
@@ -47,7 +48,7 @@
       }
       canvas {
         display: block;
-        /* Largest 16:9 box that FITS. width/height:100% + object-fit sized the
+        /* Largest box that FITS. width/height:100% + object-fit sized the
            element from its intrinsic aspect ratio instead of the viewport, so
            on a phone the canvas overflowed vertically and silently clipped the
            top and bottom of the game — HUD included. max-* + auto cannot. */
@@ -59,32 +60,48 @@
         image-rendering: crisp-edges;
       }
 
-      /* iOS Safari cannot be forced landscape, so ask. */
-      #rotate {
-        position: fixed;
-        inset: 0;
+      /* The thumb pad.
+         The viewport is ~1.19:1, so held upright it fills the width and leaves
+         most of the screen below it empty. That space is not waste — it is where
+         thumbs already were, so it becomes the controller and the game stops
+         being played through its own picture. Landscape has no room below the
+         canvas and doesn't need any: it hides. */
+      #pad {
         display: none;
-        place-items: center;
-        text-align: center;
-        background: #0a070e;
-        z-index: 30;
-        padding: 24px;
       }
-      #rotate p {
-        color: var(--dim);
-        letter-spacing: 0.14em;
-      }
-      #rotate strong {
-        display: block;
-        font-size: 20px;
-        color: var(--ink);
-        margin-bottom: 10px;
-        letter-spacing: 0.3em;
-      }
-      @media (orientation: portrait) and (pointer: coarse) {
-        #rotate {
-          display: grid;
+      @media (orientation: portrait) {
+        #stage {
+          justify-content: flex-start;
         }
+        #pad {
+          display: flex;
+          flex: 1 1 auto;
+          width: 100%;
+          min-height: 0;
+        }
+      }
+      .pad-half {
+        flex: 1;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        letter-spacing: 0.34em;
+        color: var(--dim);
+        border-top: 1px solid #1c1526;
+        transition: background-color 60ms linear;
+      }
+      #pad-slide {
+        border-right: 1px solid #1c1526;
+      }
+      /* Pressed state is set from the input layer, not :active — a pointer that
+         went down on the canvas and slid onto the pad is still a held button. */
+      #pad-slide.on {
+        background: rgba(61, 154, 212, 0.22);
+        color: var(--ink);
+      }
+      #pad-jump.on {
+        background: rgba(255, 215, 94, 0.22);
+        color: var(--ink);
       }
 
       #tuner {
@@ -152,9 +169,12 @@
     </style>
   </head>
   <body>
-    <div id="stage"><canvas id="game"></canvas></div>
-    <div id="rotate">
-      <p><strong>YAHIA</strong>rotate your phone</p>
+    <div id="stage">
+      <canvas id="game"></canvas>
+      <div id="pad">
+        <div class="pad-half" id="pad-slide">SLIDE</div>
+        <div class="pad-half" id="pad-jump">JUMP</div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

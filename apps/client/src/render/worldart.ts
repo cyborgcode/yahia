@@ -100,6 +100,8 @@ export class AtlasTiles {
   private readonly faced = new Map<string, HTMLCanvasElement>();
   private readonly props = new Map<string, HTMLCanvasElement>();
   readonly size = TILE;
+  /** Flat colour for earth too deep to have any detail worth drawing. */
+  readonly deepColor = BASE;
 
   constructor() {
     this.baked.set('breakable', this.blit('weakTop'));

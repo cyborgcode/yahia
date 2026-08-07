@@ -38,7 +38,8 @@ to win on and they stay in the session. Two leaderboards: **Fastest** and **Most
 | Round | Race to a finish line, ~75s, hard 90s cap |
 | Collision | Living players are ghosts; **only corpses are solid** |
 | Levels | Procedurally stitched from a hand-authored segment library |
-| Art | Reference sprite sheets, 1440×810 internal (SCALE 3), sun-bleached ruins |
+| Orientation | Portrait — held upright, game on top, thumb pad below |
+| Art | Reference sprite sheets, 960×1200 internal (SCALE 3) |
 
 ### Why non-solid players is the most important decision
 
@@ -66,13 +67,18 @@ finish order.
 phone platformer that works solved this by *removing inputs*, not by drawing a better
 virtual d-pad. Hence auto-run: two verbs, three techniques.
 
-**2. You can't show 12 players on a 6-inch screen.** So don't. Every player gets their own
+**2. You can't show 12 players on a 6-inch phone.** So don't. Every player gets their own
 camera; rivals are translucent ghosts drifting through frame. A shared world, twelve
 private windows onto it. This is why a race works on phones and an arena brawl doesn't.
 
-**3. Thumbs cover the bottom corners.** In landscape, both bottom corners are occluded for
-the entire round. Nothing readable and nothing tappable may live there — a settings button
-in the bottom-right eats jump inputs, and a stats readout there is simply never seen.
+**3. Thumbs cover the bottom of the screen.** Nothing readable and nothing tappable may
+live there — a settings button in a thumb zone eats jump inputs, and a stats readout there
+is simply never seen. Every persistent readout is pinned to the top edge instead.
+
+Held upright this stops being a constraint and becomes a layout: the viewport is roughly
+square, so it fills the width and leaves the lower third empty — which is exactly where the
+thumbs already were. That space becomes the controller, and the game stops being played
+through its own picture.
 
 **4. Nobody can be eliminated.** Elimination in a 12-player session means eleven people
 watching. Death has to be instant-recovery — which the corpse mechanic already gives you.
@@ -137,18 +143,32 @@ vanished the moment one shipped a light sky. Every readout is boxed now.
 This also solves the 12-colour palette problem for free: ghosts convey no identity, so
 they're all one neutral tone. Only corpses need player colour.
 
-Resolution is a single constant, `SCALE`, against a 480×270 base. The **field of view is
-30 tiles across at every scale** — no player may ever see further ahead than another,
-which in a race is a fairness requirement rather than a preference. It is also why the
-canvas letterboxes on a 2.16:1 phone instead of filling the width.
+Resolution is a single constant, `SCALE`. The **field of view is a fixed tile count —
+20 across, 25 down — at every scale and in both orientations**. No player may ever see
+further ahead than another, which in a race is a fairness requirement rather than a
+preference.
 
-`SCALE = 3` was chosen by measuring phones, not by taste. At SCALE 4 a budget Android
-threw away 56% of the pixels it had just rendered — 1080 rows into a 720-row screen — and
-a 4× CPU throttle put frame rate at 34fps. SCALE 3 wastes 21% and holds 58fps.
+It was 30 across while the game was landscape. Portrait cannot carry 30: a phone held
+upright is ~2.17× taller than wide, so the escape hatch this document used to reserve —
+hold the horizontal count, let vertical follow the device aspect — asks for 65 tiles of
+height out of a 40-tile level. You would be looking at void. So the horizontal count came
+down and the vertical went up, giving a near-square window that fills a portrait screen
+and still fits a landscape one pillarboxed.
 
-The remaining option, if the bars ever feel wasteful: keep the tile count fixed
-horizontally and let vertical extent follow the device aspect. That fills the screen and
-preserves the look-ahead that matters, at the cost of per-device buffer sizes.
+Narrowing costs look-ahead, and look-ahead is the thing a runner cannot be short of: the
+same camera anchor that bought 1.4s of warning at 30 tiles buys 0.9s at 20, against ~0.4s
+of touch latency and reaction. `cameraAnchor` dropped from 0.28 to 0.22 to buy it back —
+the runner sits further left, so more of a smaller window is track you haven't reached yet.
+
+`SCALE = 3` was chosen by measuring phones, not by taste. In portrait the buffer is 960
+wide against 1179 device pixels on a flagship, so it upscales slightly rather than wasting
+what it rendered; only a budget 720p Android downscales.
+
+**Anything below the crust is flooded, not tiled.** Three tiled rows of earth and then one
+rect per column to the bottom of the view. Tiling to the grid floor looks identical and
+cost 11fps on a throttled phone at a 25-tile viewport. The sky is clipped the same way —
+painted only down to the deepest earth line in view, since nothing above it can show
+through, except down an open chasm where it correctly runs to the floor.
 
 **Biomes are near-free variety** — palette swap, tileset swap, one signature hazard — and
 that is now literally true: tile and backdrop art is generated from a `Theme` record, so

@@ -11,15 +11,18 @@ const URL = process.env.URL ?? 'http://127.0.0.1:4173/#seed=yahia';
 const OUT = process.env.OUT ?? './shot.png';
 
 const browser = await chromium.launch();
+// Portrait, because that is how the game is held. LANDSCAPE=1 shoots the
+// pillarboxed variant instead.
+const portrait = process.env.LANDSCAPE !== '1';
 const page = await browser.newPage({
-  viewport: { width: 844, height: 390 },
+  viewport: portrait ? { width: 390, height: 844 } : { width: 844, height: 390 },
   deviceScaleFactor: 3,
 });
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForTimeout(400);
 
 // Dismiss the first-run touch hints.
-await page.mouse.click(700, 200);
+await page.mouse.click(portrait ? 200 : 700, portrait ? 640 : 200);
 await page.waitForTimeout(100);
 
 // Find a column that actually has ground with headroom above it, walking back

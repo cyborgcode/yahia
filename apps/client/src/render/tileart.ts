@@ -52,12 +52,15 @@ function mix(a: Rgb, b: Rgb, t: number): Rgb {
 export class TileBank {
   private readonly baked = new Map<Kind, HTMLCanvasElement[]>();
   readonly size: number;
+  /** Flat colour for earth too deep to have any detail worth drawing. */
+  readonly deepColor: string;
 
   constructor(
     private readonly theme: Theme = THEME,
     size = TILE,
   ) {
     this.size = size;
+    this.deepColor = theme.bodyDeep;
     for (const kind of ['top', 'deep', 'slopeR', 'slopeL', 'breakable'] as Kind[]) {
       const list: HTMLCanvasElement[] = [];
       for (let v = 0; v < VARIANTS; v++) list.push(this.bake(kind, v));

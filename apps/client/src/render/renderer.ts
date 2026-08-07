@@ -3,6 +3,7 @@ import { px } from '../game/scale';
 import { TILE, Tile, clamp } from '../game/tiles';
 import { T } from '../game/tuning';
 import { VIEW_H, VIEW_W } from '../game/view';
+import type { Level } from '../game/level';
 import type { World } from '../game/world';
 import { P } from './palette';
 import { RUN_CYCLE, SpriteBank, type SpriteName } from './sprites';
@@ -24,6 +25,23 @@ interface Tower {
   /** Which baked silhouette this instance blits. */
   variant: number;
 }
+
+/**
+ * Where a backdrop layer stands: this far below the ground line.
+ *
+ * These used to be absolute px() values, which quietly encoded "a bit below the
+ * ground line in a 270-tall view" — so raising the viewport for portrait left
+ * the skyline stranded in mid-sky. The thing they are actually relative to is
+ * the ground line, and the camera centres the runner, so the ground line is the
+ * middle of the viewport whatever its height. Anchor there instead.
+ */
+const horizon = (belowGroundLine: number): number => VIEW_H / 2 + px(belowGroundLine);
+
+/**
+ * The camY at which a runner standing on the track's base row is centred, so
+ * the backdrop drifts from rest rather than from an arbitrary world height.
+ */
+const BACKDROP_PIVOT = px(22 * 16) - VIEW_H / 2;
 
 /** Enough placements to cover the scrolled distance of one parallax layer. */
 function towerRow(
@@ -101,7 +119,7 @@ export class Renderer {
     const camY = Math.round(world.camY);
 
     if (this.profiling) this.stageStart = performance.now();
-    this.drawSky();
+    this.drawSky(world.level, camX, camY);
     this.mark('sky');
     if (THEME.art === 'atlas') {
       this.drawGrove(camX, camY);
@@ -164,8 +182,32 @@ export class Renderer {
     return canvas;
   }
 
-  private drawSky(): void {
-    this.ctx.drawImage(this.sky, 0, 0);
+  /**
+   * Sky, down to the deepest point anything can still show through.
+   *
+   * The full-buffer blit is the single most expensive draw in the frame, and
+   * under a portrait viewport most of its lower half is immediately painted over
+   * by deep earth. Every column needs sky only above its own earth line, so one
+   * rect down to the deepest visible earth line satisfies all of them — and an
+   * open column (a chasm, where earth never starts) pushes that to the floor,
+   * which is correct: you can see all the way down a chasm.
+   */
+  private drawSky(level: Level, camX: number, camY: number): void {
+    const tx0 = Math.max(0, Math.floor(camX / TILE));
+    const tx1 = Math.min(level.w - 1, Math.ceil((camX + VIEW_W) / TILE));
+
+    let bottom = 0;
+    for (let tx = tx0; tx <= tx1; tx++) {
+      const top = level.earthTop[tx] ?? -1;
+      if (top < 0) {
+        bottom = VIEW_H;
+        break;
+      }
+      const y = top * TILE - camY;
+      if (y > bottom) bottom = y;
+    }
+    const h = Math.min(VIEW_H, Math.max(0, Math.ceil(bottom)));
+    if (h > 0) this.ctx.drawImage(this.sky, 0, 0, VIEW_W, h, 0, 0, VIEW_W, h);
   }
 
   /**
@@ -177,8 +219,8 @@ export class Renderer {
    */
   private buildBackdrop(seed: number, levelWidth: number): void {
     const rng = new Rng(seed ^ 0x9e3779b9);
-    this.farTowers = towerRow(rng, levelWidth * 0.2, px(46), px(205), [px(30), px(96)], this.farBank.variants.length);
-    this.nearTowers = towerRow(rng, levelWidth * 0.45, px(64), px(228), [px(24), px(70)], this.nearBank.variants.length);
+    this.farTowers = towerRow(rng, levelWidth * 0.2, px(46), horizon(60), [px(30), px(96)], this.farBank.variants.length);
+    this.nearTowers = towerRow(rng, levelWidth * 0.45, px(64), horizon(83), [px(24), px(70)], this.nearBank.variants.length);
     this.builtForSeed = seed;
   }
 
@@ -192,7 +234,7 @@ export class Renderer {
     const ctx = this.ctx;
     const ox = Math.round(camX * factor);
     // Damped and clamped, so the horizon stays put even in a long fall.
-    const oy = Math.round(clamp((camY - px(300)) * factor * 0.12, -px(20), px(20)));
+    const oy = Math.round(clamp((camY - BACKDROP_PIVOT) * factor * 0.12, -px(20), px(20)));
 
     for (const t of towers) {
       const img = bank.get(t.variant);
@@ -202,6 +244,44 @@ export class Renderer {
     }
   }
 
+  /**
+   * Everything under the tiled crust, as one rect per run of equal-depth columns.
+   *
+   * Tiling down to the grid floor looks identical and costs ~250 extra draws a
+   * frame — 11fps on a 4x throttle at a 25-tile viewport. Below the crust there
+   * is nothing to read: no edges, no variation, nothing standable. Flood it.
+   */
+  private drawDeepEarth(level: Level, tx0: number, tx1: number, camX: number, camY: number): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = this.tiles.deepColor;
+
+    let runStart = -1;
+    let runTop = 0;
+    const flush = (endTx: number): void => {
+      if (runStart < 0) return;
+      const y = runTop * TILE - camY;
+      if (y < VIEW_H) {
+        ctx.fillRect(runStart * TILE - camX, y, (endTx - runStart + 1) * TILE, VIEW_H - y);
+      }
+      runStart = -1;
+    };
+
+    for (let tx = tx0; tx <= tx1; tx++) {
+      const top = level.earthTop[tx] ?? -1;
+      if (top < 0) {
+        flush(tx - 1);
+      } else if (runStart < 0) {
+        runStart = tx;
+        runTop = top;
+      } else if (top !== runTop) {
+        flush(tx - 1);
+        runStart = tx;
+        runTop = top;
+      }
+    }
+    flush(tx1);
+  }
+
   private drawTiles(world: World, camX: number, camY: number): void {
     const ctx = this.ctx;
     const level = world.level;
@@ -209,6 +289,8 @@ export class Renderer {
     const tx1 = Math.min(level.w - 1, Math.ceil((camX + VIEW_W) / TILE));
     const ty0 = Math.max(0, Math.floor(camY / TILE));
     const ty1 = Math.min(level.h - 1, Math.ceil((camY + VIEW_H) / TILE));
+
+    this.drawDeepEarth(level, tx0, tx1, camX, camY);
 
     for (let ty = ty0; ty <= ty1; ty++) {
       for (let tx = tx0; tx <= tx1; tx++) {
@@ -334,13 +416,16 @@ export class Renderer {
     }
     if (frameRect('tree') === undefined) return;
 
+    // Scaled up with the taller portrait viewport: the canopies are what fill
+    // the sky, and at the old sizes they topped out a third of the way down and
+    // left a bare band above.
     for (const layer of [
-      { factor: 0.22, spacing: px(132), alpha: 0.72, scale: 0.72, base: px(216) },
-      { factor: 0.45, spacing: px(176), alpha: 1, scale: 1, base: px(240) },
+      { factor: 0.22, spacing: px(132), alpha: 0.72, scale: 0.95, base: horizon(71) },
+      { factor: 0.45, spacing: px(176), alpha: 1, scale: 1.3, base: horizon(95) },
     ]) {
       const img = (this.tiles as AtlasTiles).prop('tree', layer.scale);
       const ox = camX * layer.factor;
-      const oy = clamp((camY - px(300)) * layer.factor * 0.12, -px(20), px(20));
+      const oy = clamp((camY - BACKDROP_PIVOT) * layer.factor * 0.12, -px(20), px(20));
       const first = Math.floor((ox - img.width) / layer.spacing);
       const last = Math.ceil((ox + VIEW_W) / layer.spacing);
       ctx.globalAlpha = layer.alpha;

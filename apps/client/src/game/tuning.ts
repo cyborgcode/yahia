@@ -67,10 +67,18 @@ export const T = {
   respawnDelayMs: 900,
 
   // --- camera --------------------------------------------------------------
-  /** Player's resting position across the viewport, 0..1 from the left. */
-  cameraAnchor: 0.28,
-  /** Extra look-ahead at max speed, in pixels. */
-  cameraLookAhead: px(64),
+  /**
+   * Player's resting position across the viewport, 0..1 from the left.
+   *
+   * Lowered from 0.28 when the viewport narrowed to 20 tiles for portrait.
+   * Look-ahead is what a narrower view actually costs you: at 0.28 of a 30-tile
+   * view you saw ~1.4s of track at top speed, and the same fraction of a 20-tile
+   * view is 0.9s — less than the ~0.4s of touch latency plus reaction leaves you
+   * room for. Sitting the runner further left buys most of it back.
+   */
+  cameraAnchor: 0.22,
+  /** Extra look-ahead at max speed, in pixels. Raised with the narrower view. */
+  cameraLookAhead: px(80),
   cameraSmooth: 9,
 };
 
