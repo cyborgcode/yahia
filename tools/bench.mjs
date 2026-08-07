@@ -31,6 +31,9 @@ async function fpsAt(throttle, device) {
   });
   const cdp = await page.context().newCDPSession(page);
   await page.goto(URL, { waitUntil: 'networkidle' });
+  // Past the title screen: the world does not advance until PLAY, and a paused
+  // world draws a still frame that costs nothing like a moving one.
+  await page.locator('#play').click();
   await page.waitForTimeout(500);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
   await page.waitForTimeout(300);
@@ -90,6 +93,7 @@ async function fpsWithout(stage) {
   });
   const cdp = await page.context().newCDPSession(page);
   await page.goto(URL, { waitUntil: 'networkidle' });
+  await page.locator('#play').click();
   await page.waitForTimeout(400);
   await page.evaluate((name) => {
     if (name) window.yahiaRenderer[name] = function () {};

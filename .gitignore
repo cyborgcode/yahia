@@ -4,3 +4,5 @@ dist/
 *.local
 .DS_Store
 *.log
+shot-*.png
+tools/.hero-debug.png

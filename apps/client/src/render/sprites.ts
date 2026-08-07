@@ -1,6 +1,8 @@
 import { px } from '../game/scale';
 import manifest from './atlas.json';
+import { RUNNER_SPANS, recolourSheet } from './hero';
 import atlasUrl from './yahia-atlas.png';
+import maskUrl from './yahia-mask.png';
 
 /**
  * YAHIA — the runner, sliced from the reference sprite sheets.
@@ -44,29 +46,53 @@ function offsetFor(name: SpriteName): readonly [number, number] {
 }
 
 let atlas: HTMLImageElement | null = null;
+let kitMask: HTMLImageElement | null = null;
+/**
+ * What actually gets blitted: the atlas as shipped until a kit is chosen, then
+ * a recoloured bake of it. Everything downstream draws from this one handle, so
+ * changing kit is an assignment rather than a redraw path.
+ */
+let source: CanvasImageSource | null = null;
 
-/** Resolve before the first frame renders; the loop must not start without art. */
-export function loadAtlas(): Promise<void> {
+function loadImage(url: string, what: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => {
-      atlas = img;
-      resolve();
-    };
-    img.onerror = () => reject(new Error('atlas failed to load'));
-    img.src = atlasUrl;
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`${what} failed to load`));
+    img.src = url;
   });
+}
+
+/** Resolve before the first frame renders; the loop must not start without art. */
+export async function loadAtlas(): Promise<void> {
+  [atlas, kitMask] = await Promise.all([
+    loadImage(atlasUrl, 'atlas'),
+    loadImage(maskUrl, 'kit mask'),
+  ]);
+  source = atlas;
+}
+
+/**
+ * Repaint the runner in a player's kit.
+ *
+ * Baked once per change into an offscreen canvas rather than tinted per draw:
+ * the runner is drawn every frame and a per-frame composite would be the most
+ * expensive thing on screen for a result that never varies between frames.
+ */
+export function setKit(kitIndex: number): void {
+  if (atlas === null || kitMask === null) return;
+  source = recolourSheet(atlas, kitMask, RUNNER_SPANS, kitIndex);
 }
 
 export class SpriteBank {
   /** Draw with the sprite's offset applied to a hitbox-space position. */
   draw(ctx: CanvasRenderingContext2D, name: SpriteName, hitboxX: number, hitboxY: number): void {
-    if (atlas === null) return;
+    if (source === null) return;
     const rect = FRAMES[name];
     if (rect === undefined) return;
     const [sx, sy, sw, sh] = rect;
     const [ox, oy] = offsetFor(name);
-    ctx.drawImage(atlas, sx, sy, sw, sh, Math.round(hitboxX + ox), Math.round(hitboxY + oy), sw, sh);
+    ctx.drawImage(source, sx, sy, sw, sh, Math.round(hitboxX + ox), Math.round(hitboxY + oy), sw, sh);
   }
 }
 

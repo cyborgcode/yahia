@@ -19,6 +19,7 @@ const page = await browser.newPage({
   deviceScaleFactor: 3,
 });
 await page.goto(URL, { waitUntil: 'networkidle' });
+await page.locator('#play').click();
 await page.waitForTimeout(400);
 
 // Dismiss the first-run touch hints.

@@ -28,7 +28,66 @@ page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 
 await page.goto(URL, { waitUntil: 'networkidle' });
+
+// --- the title screen, before we leave it -----------------------------------
+// A kit that does not visibly change the character is the failure mode worth
+// guarding: the recolour is a luminance remap through a mask, and a mask that
+// stopped matching the art would fail silently and look merely dull.
+const heroPixels = () =>
+  page.evaluate(() => {
+    const c = document.querySelector('#hero');
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let sum = 0;
+    let opaque = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 128) continue;
+      opaque += 1;
+      sum += d[i] * 65536 + d[i + 1] * 256 + d[i + 2];
+    }
+    return { opaque, sum };
+  });
+
+const kitCount = await page.locator('.kit').count();
+check('kit picker offers one colour per player', kitCount >= 12, `${kitCount} kits`);
+
+const beforeKit = await heroPixels();
+check('hero is drawn on the title screen', beforeKit.opaque > 5000, `${beforeKit.opaque} opaque px`);
+
+// Cobalt, deliberately: the source art has a cream shirt and pink shorts, so a
+// red kit would pass a "did it get warmer" test without doing anything at all.
+// Nothing on this character is blue except the shoes.
+await page.locator('.kit').nth(7).click();
+await sleep(500);
+const afterKit = await heroPixels();
+check(
+  'picking a kit repaints the hero',
+  afterKit.sum !== beforeKit.sum && afterKit.opaque > 5000,
+  `colour sum ${beforeKit.sum} -> ${afterKit.sum}`,
+);
+
+// Through the title screen the way a player goes: the world does not advance
+// until PLAY, so a harness that skipped it would measure a paused game.
+await page.locator('#play').click();
 await sleep(400);
+
+const runnerTinted = await page.evaluate(() => {
+  // The runner's own atlas must have been repainted too, or the kit is menu
+  // decoration rather than the thing that tells twelve players apart.
+  const c = document.createElement('canvas');
+  c.width = 240;
+  c.height = 240;
+  const ctx = c.getContext('2d');
+  // Sprites draw at a negative offset from the hitbox, so aim well inside.
+  window.yahiaRenderer.sprites.draw(ctx, 'idle', 80, 80);
+  const d = ctx.getImageData(0, 0, c.width, c.height).data;
+  let bluish = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 128) continue;
+    if (d[i + 2] > d[i] + 40) bluish += 1;
+  }
+  return bluish;
+});
+check('the chosen kit is worn in the race', runnerTinted > 200, `${runnerTinted} kit-tinted px`);
 
 // Every threshold below is expressed in the authoring base and scaled, so
 // changing SCALE never invalidates the suite. The buffer size is read off the

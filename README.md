@@ -92,6 +92,41 @@ Two poses the sheets don't contain:
   lying body's proportions; a curled crouch rotated is two-thirds as thick as the runner
   is tall and reads as a boulder.
 
+## The kit
+
+The character you meet before you play is an 8-frame turnaround, and the twelve
+colours under him are how a room full of people tell each other apart.
+
+```bash
+npm run hero         # re-slice the turnaround and rebuild both garment masks
+```
+
+**Recolouring is a luminance remap, not a hue rotation.** The shirt in the source art
+is cream — saturation 0.14 — and rotating the hue of something that desaturated
+changes nothing you can see. What carries a garment is its shading, so that is what
+survives: each pixel's luminance is normalised across the range the garment actually
+occupies (measured at slice time, not assumed to be 0..1) and used to look up a ramp
+built from the kit colour. The ramp runs from a darkened kit colour to a lightened one
+rather than black to white, because a ramp that reaches true black turns every kit into
+the same silhouette in the folds — which is the distinction being bought.
+
+Which pixels are shirt and which are shorts is decided once, offline, by
+[`slice_hero.py`](tools/slice_hero.py), where it can be looked at — the classifier
+prints a debug sheet of exactly what it labelled. The clusters separate cleanly in HSV
+(cream shirt at hue ~48, pink shorts at ~356, skin at ~20), and blobs smaller than 24px
+are dropped, because the few lit hair pixels that land in a garment are invisible while
+the shirt is cream and a bright dot on someone's forehead once it is blue.
+
+The same classifier runs over the in-game atlas, so **the kit you pick is the kit you
+race in**. A colour that stopped at the menu would be decoration rather than identity.
+Both sheets bake once per change into an offscreen canvas — the runner is drawn every
+frame, and a per-frame tint would be the most expensive thing on screen for a result
+that never varies between frames.
+
+The first pass ran both highlights half way to white and produced twelve sets of pastel
+pyjamas: most garment pixels sit high in their luminance range, so a generous highlight
+is where nearly all of them land.
+
 ## Tuning
 
 Press `T` (or tap ⚙) for live sliders over every constant in
@@ -103,10 +138,11 @@ numbers are found by dragging them while playing — not by editing a file and r
 ```
 apps/client/src/
   core/     rng.ts (seeded mulberry32) · loop.ts (fixed timestep) · input.ts
-  game/     tuning · tiles · segments · level · physics · player · world
-  render/   renderer · hud · palette · sprites · tileart
-  ui/       tuner
-tools/      playtest · bench · spritesheet · shot · slice_sheets.py · slice_tiles.py
+  game/     tuning · tiles · segments · level · physics · player · world · view
+  render/   renderer · hud · palette · sprites · tileart · worldart · hero · themes
+  ui/       boot (loading + title + kit picker) · tuner
+tools/      playtest · bench · spritesheet · shot
+            slice_sheets.py · slice_tiles.py · slice_hero.py
 ```
 
 **The world is a real tileset.** [`tools/slice_tiles.py`](tools/slice_tiles.py) slices the
@@ -174,13 +210,14 @@ never see each other. Rooms belong on **Cloudflare Durable Objects**, where
 
 ## Status
 
-Verified by `npm run playtest` (17/17 checks, real browser, real build):
+Verified by `npm run playtest` (21/21 checks, real browser, real build):
 
 - Tracks generate, vary by seed, and are byte-identical for the same seed
 - Auto-run, jump, slide, stand-up, respawn, checkpoints
 - **Sliding a descent peaks at 900 vs 583 running it** — the momentum model pays
 - Death leaves a body; bodies are solid platforms; martyr credit is recorded
 - Creatures are placed in the track and are lethal to touch
+- Twelve kits are offered, repaint the hero, and are worn into the race
 
 ## Not built yet
 

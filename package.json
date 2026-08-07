@@ -17,7 +17,8 @@
     "shot": "node tools/shot.mjs",
     "bench": "node tools/bench.mjs",
     "sprites": "python3 tools/slice_sheets.py",
-    "tiles": "python3 tools/slice_tiles.py"
+    "tiles": "python3 tools/slice_tiles.py",
+    "hero": "python3 tools/slice_hero.py"
   },
   "devDependencies": {
     "playwright": "^1.56.1"

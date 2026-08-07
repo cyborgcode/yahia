@@ -1,0 +1,23 @@
+{
+  "frameW": 110,
+  "frameH": 240,
+  "frames": 8,
+  "shirtSpan": [
+    0.3705,
+    0.9261
+  ],
+  "shortsSpan": [
+    0.2419,
+    0.7737
+  ],
+  "runner": {
+    "shirtSpan": [
+      0.5324,
+      0.938
+    ],
+    "shortsSpan": [
+      0.2759,
+      0.6836
+    ]
+  }
+}

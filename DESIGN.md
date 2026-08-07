@@ -143,6 +143,15 @@ vanished the moment one shipped a light sky. Every readout is boxed now.
 This also solves the 12-colour palette problem for free: ghosts convey no identity, so
 they're all one neutral tone. Only corpses need player colour.
 
+**Identity is a kit, picked before the round.** Twelve colours, one per player, applied
+to the runner's shirt and shorts. It is chosen on the title screen because that is the
+one moment nobody is racing — and because a player who has picked a colour has already
+been asked, gently, to care which body on the staircase is theirs.
+
+The technique matters more than it sounds: the source shirt is cream, and a hue rotation
+of something that desaturated does nothing. Kits replace the colour and keep only the
+shading, so a garment stays a garment. See the README for how.
+
 Resolution is a single constant, `SCALE`. The **field of view is a fixed tile count —
 20 across, 25 down — at every scale and in both orientations**. No player may ever see
 further ahead than another, which in a race is a fairness requirement rather than a

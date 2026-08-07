@@ -10,19 +10,30 @@ import {
   CORPSE_SPRITE_H,
   CORPSE_SPRITE_W,
   loadAtlas,
+  setKit,
   validateSprites,
 } from './render/sprites';
 import { loadWorldAtlas } from './render/worldart';
+import { loadHero } from './render/hero';
+import { createBoot } from './ui/boot';
 import { createTuner } from './ui/tuner';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const stage = document.querySelector<HTMLElement>('#stage');
 if (canvas === null || stage === null) throw new Error('missing stage');
 
+// Up before the awaits, so there is something to look at during them rather
+// than a black screen of unknown length.
+const boot = createBoot();
+
 // Atlases must decode BEFORE the renderer is constructed, not merely before the
 // loop starts: the tile bank bakes its canvases from the atlas image in the
 // constructor, and would otherwise bake a set of blank tiles.
-await Promise.all([loadAtlas(), loadWorldAtlas()]);
+await Promise.all([loadAtlas(), loadWorldAtlas(), loadHero()]);
+
+// Apply the remembered kit before the first frame, so the runner visible behind
+// the title screen is already wearing it rather than changing colour on PLAY.
+setKit(boot.kit());
 
 const renderer = new Renderer(canvas);
 const input = new Input();
@@ -53,6 +64,13 @@ function seedFromUrl(): number {
 
 const world = new World(seedFromUrl());
 let showHints = true;
+/**
+ * The world renders from the first frame — the title sits over a live track —
+ * but it does not advance until PLAY. Stepping behind the menu would spend the
+ * clock, and the first thing a player sees of their run would be a time that
+ * already started without them.
+ */
+let running = false;
 
 // Exposed so feel can be measured, not just guessed at — the automated harness
 // drives inputs and reads speed/height back out of here.
@@ -74,6 +92,11 @@ function newTrack(): void {
 }
 
 const tuner = createTuner(newTrack);
+
+boot.ready((kit) => {
+  setKit(kit);
+  running = true;
+});
 
 // Restarting: any tap once you've finished, or R at any time.
 stage.addEventListener('pointerdown', () => {
@@ -103,7 +126,9 @@ document.addEventListener('visibilitychange', () => {
 void keepAwake();
 
 startLoop(
-  (dt) => world.step(dt, input),
+  (dt) => {
+    if (running) world.step(dt, input);
+  },
   () => {
     renderer.draw(world);
     drawHud(renderer.context, world, showHints);
