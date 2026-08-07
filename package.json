@@ -1,0 +1,17 @@
+{
+  "name": "yahia",
+  "private": true,
+  "version": "0.0.1",
+  "description": "YAHIA — a multiplayer pixel-art auto-runner where death builds the road",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/client",
+    "build": "npm run build --workspace apps/client",
+    "preview": "npm run preview --workspace apps/client",
+    "typecheck": "npm run typecheck --workspace apps/client",
+    "playtest": "node tools/playtest.mjs"
+  }
+}

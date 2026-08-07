@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#150f1b" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>YAHIA</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #f2e3c4;
+        --dim: #8a7c93;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        background: #0a070e;
+        color: var(--ink);
+        font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+        overflow: hidden;
+        overscroll-behavior: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #stage {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        /* Stops the browser stealing drags for scroll/zoom — vital on phones. */
+        touch-action: none;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        /* Fractional scaling: integer-only would letterbox a 480x270 buffer down
+           to 1x on most phones, wasting most of the screen. */
+        object-fit: contain;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+      }
+
+      /* iOS Safari cannot be forced landscape, so ask. */
+      #rotate {
+        position: fixed;
+        inset: 0;
+        display: none;
+        place-items: center;
+        text-align: center;
+        background: #0a070e;
+        z-index: 30;
+        padding: 24px;
+      }
+      #rotate p {
+        color: var(--dim);
+        letter-spacing: 0.14em;
+      }
+      #rotate strong {
+        display: block;
+        font-size: 20px;
+        color: var(--ink);
+        margin-bottom: 10px;
+        letter-spacing: 0.3em;
+      }
+      @media (orientation: portrait) and (pointer: coarse) {
+        #rotate {
+          display: grid;
+        }
+      }
+
+      #tuner {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 20;
+        max-height: 100dvh;
+        overflow-y: auto;
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+        background: rgba(10, 7, 14, 0.94);
+        border-right: 1px solid #2e2334;
+        width: min(300px, 82vw);
+      }
+      #tuner h2 {
+        font-size: 10px;
+        letter-spacing: 0.3em;
+        color: var(--dim);
+        margin-bottom: 8px;
+      }
+      #tuner label {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 2px 8px;
+        margin-bottom: 6px;
+        font-size: 10px;
+        color: var(--dim);
+      }
+      #tuner label b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      #tuner input[type='range'] {
+        grid-column: 1 / -1;
+        width: 100%;
+        accent-color: #ffd75e;
+      }
+      #tuner button {
+        width: 100%;
+        margin-top: 8px;
+        padding: 8px;
+        font: inherit;
+        letter-spacing: 0.2em;
+        color: #0a070e;
+        background: #ffd75e;
+        border: 0;
+        border-radius: 2px;
+      }
+      #tuner-toggle {
+        position: fixed;
+        z-index: 21;
+        right: calc(8px + env(safe-area-inset-right));
+        bottom: calc(8px + env(safe-area-inset-bottom));
+        width: 34px;
+        height: 34px;
+        font-size: 16px;
+        color: var(--ink);
+        background: rgba(10, 7, 14, 0.75);
+        border: 1px solid #2e2334;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage"><canvas id="game"></canvas></div>
+    <div id="rotate">
+      <p><strong>YAHIA</strong>rotate your phone</p>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
