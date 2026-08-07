@@ -1,32 +1,34 @@
+import { px } from './scale';
+
 /**
  * Every number that decides how YAHIA feels.
  *
  * This object is mutated live by the tuner overlay (press `T`), which is the
  * entire point of the prototype: find the values, then freeze them.
- * Units are pixels and seconds, in the 1920x1080 internal resolution.
  *
- * These are the 480x270 values doubled twice. Lengths scale linearly with the render
- * scale and time does not, so velocities (px/s) and accelerations (px/s²) both
- * double while every duration in milliseconds stays exactly where it was.
+ * Distances are authored once at the 480x270 base and multiplied by SCALE.
+ * Lengths scale with the render scale and time does not — so velocities (px/s)
+ * and accelerations (px/s²) scale, while every duration in milliseconds is a
+ * bare number that must never be touched by a resolution change.
  */
 export const T = {
   // --- gravity -------------------------------------------------------------
-  gravity: 3600,
+  gravity: px(900),
   /** Air-slide (fast-fall) multiplies gravity. Commit downward, hard. */
   fastFallMul: 2.4,
-  maxFallSpeed: 1680,
+  maxFallSpeed: px(420),
 
   // --- run -----------------------------------------------------------------
   /** The speed you drift back to. Everything above this is earned. */
-  baseSpeed: 600,
-  maxSpeed: 1200,
+  baseSpeed: px(150),
+  maxSpeed: px(300),
   /** Acceleration back up to baseSpeed when below it. */
-  accel: 1680,
+  accel: px(420),
   /** How fast banked speed bleeds off on flat ground. */
-  overspeedDrag: 220,
+  overspeedDrag: px(55),
 
   // --- jump ----------------------------------------------------------------
-  jumpVel: 1200,
+  jumpVel: px(300),
   /** Releasing early cuts upward velocity by this factor (variable height). */
   jumpCutMul: 0.4,
   /** Grace period to still jump after walking off a ledge. */
@@ -36,21 +38,21 @@ export const T = {
 
   // --- slide ---------------------------------------------------------------
   /** Instant speed kick when the slide starts. */
-  slideBoost: 180,
+  slideBoost: px(45),
   /** Slides bleed speed on flat ground — using it wrong costs you. */
-  slideFrictionFlat: 840,
+  slideFrictionFlat: px(210),
   /** Minimum slide duration. Slides are a commitment, not a tap. */
   slideMinMs: 160,
   /** Slide-jumps go lower... */
   slideJumpVelMul: 0.8,
   /** ...but carry extra speed. Long and flat instead of high. */
-  slideJumpSpeedBonus: 136,
+  slideJumpSpeedBonus: px(34),
 
   // --- slopes --------------------------------------------------------------
   /** Along-slope acceleration while descending. */
-  slopeAccel: 2080,
+  slopeAccel: px(520),
   /** Along-slope deceleration while climbing. */
-  slopeDecel: 1600,
+  slopeDecel: px(400),
   /** Sliding down a slope multiplies the gain. This is the speed engine. */
   slideSlopeMul: 1.7,
 
@@ -68,7 +70,7 @@ export const T = {
   /** Player's resting position across the viewport, 0..1 from the left. */
   cameraAnchor: 0.28,
   /** Extra look-ahead at max speed, in pixels. */
-  cameraLookAhead: 256,
+  cameraLookAhead: px(64),
   cameraSmooth: 9,
 };
 
@@ -76,24 +78,24 @@ export type Tuning = typeof T;
 
 /** Ranges for the live tuner overlay. Only listed keys get a slider. */
 export const TUNER_RANGES: Partial<Record<keyof Tuning, [number, number]>> = {
-  gravity: [1600, 8000],
+  gravity: [px(400), px(2000)],
   fastFallMul: [1, 5],
-  baseSpeed: [320, 1200],
-  maxSpeed: [600, 2000],
-  accel: [400, 4800],
-  overspeedDrag: [0, 1200],
-  jumpVel: [600, 2000],
+  baseSpeed: [px(80), px(300)],
+  maxSpeed: [px(150), px(500)],
+  accel: [px(100), px(1200)],
+  overspeedDrag: [0, px(300)],
+  jumpVel: [px(150), px(500)],
   jumpCutMul: [0, 1],
   coyoteMs: [0, 250],
   bufferMs: [0, 300],
-  slideBoost: [0, 600],
-  slideFrictionFlat: [0, 2400],
+  slideBoost: [0, px(150)],
+  slideFrictionFlat: [0, px(600)],
   slideMinMs: [0, 500],
   slideJumpVelMul: [0.3, 1.2],
-  slideJumpSpeedBonus: [0, 480],
-  slopeAccel: [0, 4800],
-  slopeDecel: [0, 4800],
+  slideJumpSpeedBonus: [0, px(120)],
+  slopeAccel: [0, px(1200)],
+  slopeDecel: [0, px(1200)],
   slideSlopeMul: [1, 3],
   cameraAnchor: [0.1, 0.6],
-  cameraLookAhead: [0, 640],
+  cameraLookAhead: [0, px(160)],
 };

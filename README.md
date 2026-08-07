@@ -19,7 +19,10 @@ npm install
 npm run dev          # http://localhost:5173
 npm run build        # static bundle -> apps/client/dist
 npm run playtest     # automated feel + physics harness (needs a preview server)
+npm run bench        # mobile cost check: wasted pixels + throttled frame rate
 ```
+
+**This is a mobile game.** Phones in landscape are the target, desktop is incidental.
 
 ## Controls
 
@@ -32,6 +35,10 @@ npm run playtest     # automated feel + physics harness (needs a preview server)
 
 Screen halves rather than gesture recognition: a swipe can't be recognised until it has
 moved, and that delay is exactly the latency a platformer can't afford.
+
+In landscape both **bottom corners are under a thumb** for the whole round, so nothing
+lives there: every HUD readout is pinned to the top edge and the tuner button sits in the
+top-right. Multi-touch is tracked per pointer, so slide and jump can be held together.
 
 ## The three techniques
 
@@ -51,7 +58,8 @@ camera gives you less reaction time the better you're doing.
 YAHIA is drawn in [`sprites.ts`](apps/client/src/render/sprites.ts) as ASCII pixel data —
 dark curly hair, cream tee, pink shorts, navy sneakers, after the TUNISIA_HERO reference.
 
-Authored at the game's own resolution (80×96) rather than downscaled from reference art.
+Authored at the game's own resolution rather than downscaled from reference art, and
+re-emitted whenever `SCALE` changes.
 Drawn in **right-facing profile**: an auto-runner only travels one way, and a front-facing
 figure with legs splayed sideways reads as a star jump however you animate it.
 
@@ -89,7 +97,7 @@ apps/client/src/
   game/     tuning · tiles · segments · level · physics · player · world
   render/   renderer · hud · palette
   ui/       tuner
-tools/      playtest.mjs · spritesheet.mjs · shot.mjs · rig.py
+tools/      playtest.mjs · bench.mjs · spritesheet.mjs · shot.mjs · rig.py
 ```
 
 **Levels are stitched, not noise-generated.** A hand-authored library of challenge
@@ -126,7 +134,7 @@ Verified by `npm run playtest` (15/15 checks, real browser, real build):
 
 - Tracks generate, vary by seed, and are byte-identical for the same seed
 - Auto-run, jump, slide, stand-up, respawn, checkpoints
-- **Sliding a descent peaks at 1200 vs 777 running it** — the momentum model pays
+- **Sliding a descent peaks at 900 vs 583 running it** — the momentum model pays
 - Death leaves a body; bodies are solid platforms; martyr credit is recorded
 
 ## Not built yet

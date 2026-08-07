@@ -1,11 +1,11 @@
+import { px } from './scale';
+
 /**
- * Internal resolution. Everything is authored and simulated in these pixels,
- * then scaled to fill the screen.
+ * Internal resolution, derived from SCALE.
  *
- * 1920x1080, doubled twice from the original 480x270. Each doubling deliberately
- * keeps the *field of view* identical — 30 tiles across, same look-ahead, same
- * reaction time — and spends every new pixel on detail instead. Widening the
- * view would have quietly made the game easier; this only makes it sharper.
+ * The field of view is fixed at 30 tiles across regardless of scale — every
+ * player sees exactly the same amount of track ahead, which in a race is a
+ * fairness property rather than a preference. Scale buys detail, never reach.
  */
-export const VIEW_W = 1920;
-export const VIEW_H = 1080;
+export const VIEW_W = px(480);
+export const VIEW_H = px(270);

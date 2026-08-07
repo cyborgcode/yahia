@@ -4,6 +4,7 @@ import { seedFromString } from './core/rng';
 import { World } from './game/world';
 import { drawHud } from './render/hud';
 import { Renderer } from './render/renderer';
+import { SCALE } from './game/scale';
 import { SPRITES, SPRITE_PALETTE, validateSprites } from './render/sprites';
 import { createTuner } from './ui/tuner';
 
@@ -32,6 +33,7 @@ let showHints = true;
 // drives inputs and reads speed/height back out of here.
 (window as unknown as { yahia: World; yahiaInput: Input }).yahia = world;
 (window as unknown as { yahia: World; yahiaInput: Input }).yahiaInput = input;
+(window as unknown as { yahiaScale: number }).yahiaScale = SCALE;
 (window as unknown as { yahiaSprites: unknown }).yahiaSprites = {
   SPRITES,
   PALETTE: SPRITE_PALETTE,

@@ -1,4 +1,6 @@
-export const TILE = 64;
+import { px } from './scale';
+
+export const TILE = px(16);
 
 /** Plain object rather than `const enum` — safe under isolatedModules. */
 export const Tile = {

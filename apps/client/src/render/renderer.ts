@@ -1,4 +1,5 @@
 import { Rng } from '../core/rng';
+import { px } from '../game/scale';
 import { TILE, Tile, clamp } from '../game/tiles';
 import { T } from '../game/tuning';
 import { VIEW_H, VIEW_W } from '../game/view';
@@ -33,7 +34,7 @@ function towerRow(
 }
 
 /**
- * Canvas2D into a 1920x1080 backbuffer, then nearest-neighbour upscale.
+ * Canvas2D into a SCALE-derived backbuffer, then nearest-neighbour upscale.
  *
  * Deliberately not PixiJS yet: with placeholder art there is nothing for WebGL
  * to accelerate, and this removes all engine setup risk from the one question
@@ -99,8 +100,8 @@ export class Renderer {
    */
   private buildBackdrop(seed: number, levelWidth: number): void {
     const rng = new Rng(seed ^ 0x9e3779b9);
-    this.farTowers = towerRow(rng, levelWidth * 0.2, 184, 820, [56, 136], [120, 384]);
-    this.nearTowers = towerRow(rng, levelWidth * 0.45, 256, 912, [80, 208], [96, 280]);
+    this.farTowers = towerRow(rng, levelWidth * 0.2, px(46), px(205), [px(14), px(34)], [px(30), px(96)]);
+    this.nearTowers = towerRow(rng, levelWidth * 0.45, px(64), px(228), [px(20), px(52)], [px(24), px(70)]);
     this.builtForSeed = seed;
   }
 
@@ -109,7 +110,7 @@ export class Renderer {
     ctx.fillStyle = color;
     const ox = Math.round(camX * factor);
     // Damped and clamped, so the horizon stays put even in a long fall.
-    const oy = Math.round(clamp((camY - 1200) * factor * 0.12, -80, 80));
+    const oy = Math.round(clamp((camY - px(300)) * factor * 0.12, -px(20), px(20)));
     for (const t of towers) {
       const x = t.x - ox;
       if (x + t.w < 0 || x > VIEW_W) continue;
@@ -140,7 +141,7 @@ export class Renderer {
             ctx.fillRect(x, y, TILE, TILE);
             if (exposed) {
               ctx.fillStyle = P.terrainLip;
-              ctx.fillRect(x, y, TILE, 12);
+              ctx.fillRect(x, y, TILE, px(3));
             }
             break;
           }
@@ -155,31 +156,31 @@ export class Renderer {
             ctx.fillStyle = P.breakable;
             ctx.fillRect(x, y, TILE, TILE);
             ctx.fillStyle = P.breakableLip;
-            ctx.fillRect(x, y, TILE, 8);
+            ctx.fillRect(x, y, TILE, px(2));
             if (fuse !== null) {
               // Telegraph the collapse: cracks widen as the fuse burns.
               ctx.fillStyle = P.terrainDeep;
               const n = 1 + Math.floor(fuse * 4);
-              for (let i = 0; i < n; i++) ctx.fillRect(x + 8 + i * 12, y + 12, 4, TILE - 16);
+              for (let i = 0; i < n; i++) ctx.fillRect(x + px(2) + i * px(3), y + px(3), px(1), TILE - px(4));
             }
             break;
           }
           case Tile.Spike:
             ctx.fillStyle = P.hazard;
             for (let i = 0; i < 4; i++) {
-              const sx = x + i * 16;
+              const sx = x + i * px(4);
               ctx.beginPath();
               ctx.moveTo(sx, y + TILE);
-              ctx.lineTo(sx + 8, y + TILE - 36);
-              ctx.lineTo(sx + 16, y + TILE);
+              ctx.lineTo(sx + px(2), y + TILE - px(9));
+              ctx.lineTo(sx + px(4), y + TILE);
               ctx.closePath();
               ctx.fill();
             }
             break;
           case Tile.Goal:
             ctx.fillStyle = P.goal;
-            ctx.fillRect(x + 24, y - TILE * 2, 12, TILE * 3);
-            ctx.fillRect(x + 36, y - TILE * 2, 32, 24);
+            ctx.fillRect(x + px(6), y - TILE * 2, px(3), TILE * 3);
+            ctx.fillRect(x + px(9), y - TILE * 2, px(8), px(6));
             break;
           default:
             break;
@@ -205,7 +206,7 @@ export class Renderer {
     ctx.fill();
 
     ctx.strokeStyle = P.terrainLip;
-    ctx.lineWidth = 8;
+    ctx.lineWidth = px(2);
     ctx.beginPath();
     if (risingRight) {
       ctx.moveTo(x, y + TILE);
@@ -222,10 +223,10 @@ export class Renderer {
     ctx.fillStyle = P.checkpoint;
     for (const cp of world.level.checkpoints) {
       const x = cp.x - camX;
-      if (x < -32 || x > VIEW_W + 32) continue;
+      if (x < -px(8) || x > VIEW_W + px(8)) continue;
       ctx.globalAlpha = cp.x <= world.player.x ? 1 : 0.35;
-      ctx.fillRect(x, cp.y - camY - 72, 8, 72);
-      ctx.fillRect(x + 8, cp.y - camY - 72, 28, 20);
+      ctx.fillRect(x, cp.y - camY - px(18), px(2), px(18));
+      ctx.fillRect(x + px(2), cp.y - camY - px(18), px(7), px(5));
     }
     ctx.globalAlpha = 1;
   }
@@ -251,7 +252,7 @@ export class Renderer {
       // box, not the silhouette, so the landable edges are never guessed at.
       ctx.globalAlpha = alpha * 0.7;
       ctx.fillStyle = P.corpseEdge;
-      ctx.fillRect(x, y, c.w, 2);
+      ctx.fillRect(x, y, c.w, Math.max(2, px(0.5)));
       ctx.globalAlpha = 1;
     }
   }
@@ -269,7 +270,7 @@ export class Renderer {
       ctx.globalAlpha = speedT * 0.5;
       ctx.fillStyle = P.playerSash;
       for (let i = 1; i <= 3; i++) {
-        ctx.fillRect(Math.round(x) - i * 28, Math.round(y) + 20 + i * 12, 20 + speedT * 32, 4);
+        ctx.fillRect(Math.round(x) - i * px(7), Math.round(y) + px(5) + i * px(3), px(5) + speedT * px(8), px(1));
       }
       ctx.globalAlpha = 1;
     }
@@ -278,7 +279,7 @@ export class Renderer {
 
     if (p.fastFalling) {
       ctx.fillStyle = P.playerSash;
-      ctx.fillRect(Math.round(x) + 8, Math.round(y) + p.h, p.w - 16, 12);
+      ctx.fillRect(Math.round(x) + px(2), Math.round(y) + p.h, p.w - px(4), px(3));
     }
   }
 }
@@ -287,6 +288,6 @@ export class Renderer {
 function playerFrame(p: World['player']): SpriteName {
   if (p.sliding) return 'slide';
   if (!p.grounded) return p.vy < 0 ? 'jump' : 'fall';
-  const step = Math.floor(p.distance / 36) % RUN_CYCLE.length;
+  const step = Math.floor(p.distance / px(9)) % RUN_CYCLE.length;
   return RUN_CYCLE[step]!;
 }

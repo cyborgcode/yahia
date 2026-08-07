@@ -29,6 +29,13 @@ page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await sleep(400);
 
+// Every threshold below is expressed in the 480x270 authoring base and scaled,
+// so changing SCALE never invalidates the suite.
+const SCALE = await page.evaluate(() => window.yahiaScale);
+const px = (base) => base * SCALE;
+const TILE = px(16);
+console.log(`render scale ${SCALE}x — ${px(480)}x${px(270)}, ${TILE}px tiles\n`);
+
 const state = () =>
   page.evaluate(() => {
     const w = window.yahia;
@@ -55,14 +62,14 @@ const state = () =>
 
 // --- level built sanely ----------------------------------------------------
 const start = await state();
-check('level generated', start.levelW > 8000 && start.segments > 20,
+check('level generated', start.levelW > px(2000) && start.segments > 20,
   `${start.segments} segments, ${start.levelW}px, ${start.checkpoints} checkpoints`);
 check('goal placed', start.goalX > 0, `goalX=${start.goalX}`);
 
 // --- auto-run --------------------------------------------------------------
 await sleep(1000);
 const ran = await state();
-check('auto-runs forward', ran.x > start.x + 240, `moved ${Math.round(ran.x - start.x)}px in 1s`);
+check('auto-runs forward', ran.x > start.x + px(60), `moved ${Math.round(ran.x - start.x)}px in 1s`);
 
 // --- jump ------------------------------------------------------------------
 await page.evaluate(() => window.yahia.player.spawn(window.yahia.level.checkpoints[0].x, window.yahia.level.checkpoints[0].y));
@@ -72,7 +79,7 @@ await page.keyboard.down('Space');
 await sleep(120);
 const midJump = await state();
 await page.keyboard.up('Space');
-check('jump lifts the player', midJump.y < beforeJump.y - 40,
+check('jump lifts the player', midJump.y < beforeJump.y - px(10),
   `rose ${Math.round(beforeJump.y - midJump.y)}px`);
 await sleep(600);
 
@@ -80,11 +87,11 @@ await sleep(600);
 await page.keyboard.down('ArrowDown');
 await sleep(200);
 const sliding = await state();
-check('slide halves the hitbox', sliding.h === 40 && sliding.sliding, `h=${sliding.h}`);
+check('slide halves the hitbox', sliding.h === px(10) && sliding.sliding, `h=${sliding.h}`);
 await page.keyboard.up('ArrowDown');
 await sleep(300);
 const stood = await state();
-check('stands back up', stood.h === 80, `h=${stood.h}`);
+check('stands back up', stood.h === px(20), `h=${stood.h}`);
 
 // --- the momentum claim: sliding a slope banks speed ------------------------
 // This is the design's central mechanical promise. If sliding a descent does
@@ -97,10 +104,11 @@ async function placeOnSlope() {
       w.level.placed.find((p) => p.name === 'descent') ??
       w.level.placed.find((p) => p.name === 'stairs');
     if (!seg) return false;
-    const tx = Math.floor(seg.x / 64) + 1;
+    const TILE = window.yahiaScale * 16;
+    const tx = Math.floor(seg.x / TILE) + 1;
     let ty = 0;
     while (ty < w.level.h && w.level.get(tx, ty) === 0) ty++;
-    w.player.spawn(tx * 64 + 8, ty * 64);
+    w.player.spawn(tx * TILE + window.yahiaScale * 2, ty * TILE);
     return true;
   });
 }
@@ -136,8 +144,8 @@ if (await placeOnSlope()) {
   const sliding = await peakSpeedOverSlope(true);
   check('sliding a descent out-runs running it', sliding > running + 10,
     `slide peak ${Math.round(sliding)} vs run peak ${Math.round(running)}`);
-  check('slide banks speed above base', sliding > 600 * 1.1,
-    `peak ${Math.round(sliding)} vs base 600`);
+  check('slide banks speed above base', sliding > px(150) * 1.1,
+    `peak ${Math.round(sliding)} vs base ${px(150)}`);
 } else {
   check('descent segment present in track', false, 'no descent/stairs segment generated');
 }
@@ -159,7 +167,7 @@ check('death leaves a body', corpseTest.after > corpseTest.before,
 const standsOnCorpse = await page.evaluate(async () => {
   const w = window.yahia;
   const L = w.level;
-  const TILE = 64;
+  const TILE = window.yahiaScale * 16;
   const { rows } = window.yahiaSprites.SPRITES.corpse;
   const cw = rows[0].length;
   const ch = rows.length;
@@ -184,7 +192,7 @@ const standsOnCorpse = await page.evaluate(async () => {
     w: cw, h: ch, born: w.timeMs, where: 'test',
   };
   w.corpses.push(corpse);
-  w.player.spawn(corpse.x + 12, corpse.y - 16);
+  w.player.spawn(corpse.x + window.yahiaScale * 3, corpse.y - window.yahiaScale * 4);
 
   // Sample the landing frame, not some later one: the runner never stops, so
   // by 350ms it has already crossed a 20px body and moved on.
@@ -245,7 +253,7 @@ const fps = await page.evaluate(
       requestAnimationFrame(tick);
     }),
 );
-check('sustains 60fps headless', fps > 50, `${fps.toFixed(0)} fps at 1920x1080 (not a phone)`);
+check('sustains 60fps headless', fps > 50, `${fps.toFixed(0)} fps at ${px(480)}x${px(270)} (not a phone)`);
 
 const final = await state();
 check('no runtime errors', errors.length === 0, errors.slice(0, 3).join(' | ') || 'clean');

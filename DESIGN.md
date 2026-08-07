@@ -38,7 +38,7 @@ to win on and they stay in the session. Two leaderboards: **Fastest** and **Most
 | Round | Race to a finish line, ~75s, hard 90s cap |
 | Collision | Living players are ghosts; **only corpses are solid** |
 | Levels | Procedurally stitched from a hand-authored segment library |
-| Art | Pixel art, 1920×1080 internal, 80×96 runner, sun-bleached ruins |
+| Art | Pixel art, 1440×810 internal (SCALE 3), sun-bleached ruins |
 
 ### Why non-solid players is the most important decision
 
@@ -70,7 +70,11 @@ virtual d-pad. Hence auto-run: two verbs, three techniques.
 camera; rivals are translucent ghosts drifting through frame. A shared world, twelve
 private windows onto it. This is why a race works on phones and an arena brawl doesn't.
 
-**3. Nobody can be eliminated.** Elimination in a 12-player session means eleven people
+**3. Thumbs cover the bottom corners.** In landscape, both bottom corners are occluded for
+the entire round. Nothing readable and nothing tappable may live there — a settings button
+in the bottom-right eats jump inputs, and a stats readout there is simply never seen.
+
+**4. Nobody can be eliminated.** Elimination in a 12-player session means eleven people
 watching. Death has to be instant-recovery — which the corpse mechanic already gives you.
 
 ---
@@ -128,14 +132,18 @@ feel unfair.
 This also solves the 12-colour palette problem for free: ghosts convey no identity, so
 they're all one neutral tone. Only corpses need player colour.
 
-The internal resolution is 1920×1080 with 64px tiles, doubled twice from 480×270. Each
-doubling deliberately kept the **field of view identical** — same 30 tiles across, same
-look-ahead, same reaction time — spending every new pixel on detail. Widening the view
-would have quietly made the game easier.
+Resolution is a single constant, `SCALE`, against a 480×270 base. The **field of view is
+30 tiles across at every scale** — no player may ever see further ahead than another,
+which in a race is a fairness requirement rather than a preference. It is also why the
+canvas letterboxes on a 2.16:1 phone instead of filling the width.
 
-The open risk is fill rate: 1080p Canvas2D on a cheap Android is the cost of this
-decision, and headless benchmarks do not answer it. If it bites, dropping back to
-1440×810 is a constants change, since every measurement derives from `VIEW_*` and `TILE`.
+`SCALE = 3` was chosen by measuring phones, not by taste. At SCALE 4 a budget Android
+threw away 56% of the pixels it had just rendered — 1080 rows into a 720-row screen — and
+a 4× CPU throttle put frame rate at 34fps. SCALE 3 wastes 21% and holds 58fps.
+
+The remaining option, if the bars ever feel wasteful: keep the tile count fixed
+horizontally and let vertical extent follow the device aspect. That fills the screen and
+preserves the look-ahead that matters, at the cost of per-device buffer sizes.
 
 **Theme: sun-bleached North African / Levantine ruins.** Ochre, terracotta, bone, lapis.
 Underused in platformers, and the palette naturally provides the value separation the

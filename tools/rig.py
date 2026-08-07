@@ -1,5 +1,14 @@
-"""Generate YAHIA's sprites at 80x96 with outline + shading passes."""
+"""Generate YAHIA's sprites with outline + shading passes.
+
+Poses are authored once in an 80x96 space and emitted at the game's current
+SCALE, so a resolution change is a one-line edit here rather than a redraw.
+"""
 import math
+
+AUTHORED_SCALE = 4          # the space the poses below are written in
+TARGET_SCALE = 3            # must match SCALE in apps/client/src/game/scale.ts
+K = TARGET_SCALE / AUTHORED_SCALE
+PROBE = max(2, round(3 * K))  # shading probe distance, in target pixels
 
 OUTLINE = 'K'
 # material -> (shadow, base, light)
@@ -15,8 +24,8 @@ PAL = {
 
 class Canvas:
     def __init__(self, w, h):
-        self.w, self.h = w, h
-        self.m = [[0] * w for _ in range(h)]
+        self.w, self.h = round(w * K), round(h * K)
+        self.m = [[0] * self.w for _ in range(self.h)]
 
     def get(self, x, y):
         if x < 0 or y < 0 or x >= self.w or y >= self.h:
@@ -24,6 +33,8 @@ class Canvas:
         return self.m[y][x]
 
     def capsule(self, x0, y0, x1, y1, r0, r1, mat):
+        x0, y0, x1, y1 = x0 * K, y0 * K, x1 * K, y1 * K
+        r0, r1 = r0 * K, r1 * K
         dx, dy = x1 - x0, y1 - y0
         L2 = dx * dx + dy * dy or 1e-6
         rmax = max(r0, r1) + 1
@@ -37,6 +48,7 @@ class Canvas:
                     self.m[y][x] = mat
 
     def ellipse(self, cx, cy, rx, ry, mat):
+        cx, cy, rx, ry = cx * K, cy * K, rx * K, ry * K
         for y in range(max(0, int(cy - ry)), min(self.h, int(cy + ry) + 1)):
             for x in range(max(0, int(cx - rx)), min(self.w, int(cx + rx) + 1)):
                 if ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1.0:
@@ -60,9 +72,9 @@ class Canvas:
                     out[y][x] = OUTLINE
                     continue
                 sh, base, li = PAL[m]
-                if self.get(x, y - 3) != m:
+                if self.get(x, y - PROBE) != m:
                     out[y][x] = li
-                elif self.get(x, y + 3) != m or self.get(x + 3, y) != m:
+                elif self.get(x, y + PROBE) != m or self.get(x + PROBE, y) != m:
                     out[y][x] = sh
                 else:
                     out[y][x] = base
@@ -74,7 +86,8 @@ class Canvas:
                         out[y][x] = 'G'
                     elif (x * 5 + y * 3) % 9 == 0:
                         out[y][x] = 'h'
-        for (sx, sy, ch) in stamps:
+        for (sx0, sy0, ch) in stamps:
+            sx, sy = round(sx0 * K), round(sy0 * K)
             if 0 <= sx < self.w and 0 <= sy < self.h and out[sy][sx] != '.':
                 out[sy][sx] = ch
         return [''.join(r) for r in out]

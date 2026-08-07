@@ -9,15 +9,16 @@ import {
   type Corpse,
   type GroundHit,
 } from './physics';
+import { px } from './scale';
 import { Tile, clamp } from './tiles';
 import { T } from './tuning';
 
-export const PLAYER_W = 48;
-export const PLAYER_H_STAND = 80;
-export const PLAYER_H_SLIDE = 40;
+export const PLAYER_W = px(12);
+export const PLAYER_H_STAND = px(20);
+export const PLAYER_H_SLIDE = px(10);
 
 /** Speed you can never drop below — this is an auto-runner, not a walk. */
-const FLOOR_SPEED = 220;
+const FLOOR_SPEED = px(55);
 
 export interface PlayerInput {
   jumpHeld: boolean;
@@ -158,10 +159,10 @@ export class Player {
     this.standingOnBreakable = null;
     if (this.vy >= 0) {
       const feet = this.y + this.h;
-      const snapUp = wasGrounded ? 40 : 24;
-      const snapDown = wasGrounded ? 48 : 0; // stick to descending slopes
+      const snapUp = px(wasGrounded ? 10 : 6);
+      const snapDown = wasGrounded ? px(12) : 0; // stick to descending slopes
       let best: GroundHit | null = null;
-      for (const sx of [this.x + 8, this.x + this.w / 2, this.x + this.w - 8]) {
+      for (const sx of [this.x + px(2), this.x + this.w / 2, this.x + this.w - px(2)]) {
         const hit = groundAt(level, corpses, sx, feet, snapUp, snapDown);
         if (hit !== null && (best === null || hit.y < best.y)) best = hit;
       }

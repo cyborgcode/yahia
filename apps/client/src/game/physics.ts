@@ -1,4 +1,5 @@
 import type { Level } from './level';
+import { px } from './scale';
 import { TILE, Tile, isDeadly, isGround, isWall, slopeDir, surfaceY } from './tiles';
 
 export interface Box {
@@ -29,7 +30,7 @@ export interface GroundHit {
 }
 
 /** A lip this tall or shorter is run over rather than blocking you. */
-const STEP_UP = 20;
+const STEP_UP = px(5);
 
 /**
  * Highest walkable surface under `sx` within the snap window.

@@ -1,3 +1,4 @@
+import { px } from '../game/scale';
 import { clamp } from '../game/tiles';
 import { T } from '../game/tuning';
 import { VIEW_H, VIEW_W } from '../game/view';
@@ -5,17 +6,22 @@ import type { World } from '../game/world';
 import { P } from './palette';
 
 /**
- * Drawn into the same 1920x1080 backbuffer as the world, so the HUD lives on the
- * same pixel grid as everything else instead of floating above it in DOM.
+ * Drawn into the same backbuffer as the world, so the HUD lives on the same
+ * pixel grid as everything else instead of floating above it in DOM.
+ *
+ * Layout is mobile-first: in landscape a player's thumbs sit over the bottom-left
+ * and bottom-right corners for the whole round, so nothing readable goes there.
+ * Every persistent readout is pinned to the top edge, which no thumb covers.
+ * Only transient centre-screen text — death and finish — uses the middle.
  */
 export function drawHud(ctx: CanvasRenderingContext2D, world: World, showHints: boolean): void {
-  ctx.font = 'bold 32px monospace';
+  ctx.font = `bold ${px(8)}px monospace`;
   ctx.textBaseline = 'top';
 
   drawSpeed(ctx, world);
-  drawTimer(ctx, world);
   drawTally(ctx, world);
   drawSegmentName(ctx, world);
+  drawTimer(ctx, world);
 
   if (!world.player.alive) drawDeathBanner(ctx, world);
   if (world.finishedMs !== null) drawFinish(ctx, world);
@@ -27,64 +33,66 @@ function drawSpeed(ctx: CanvasRenderingContext2D, world: World): void {
   const earned = clamp((p.vx - T.baseSpeed) / Math.max(1, T.maxSpeed - T.baseSpeed), 0, 1);
 
   ctx.fillStyle = P.hudBack;
-  ctx.fillRect(16, 16, 312, 64);
+  ctx.fillRect(px(4), px(4), px(78), px(16));
 
   ctx.fillStyle = P.hudDim;
-  ctx.fillText('SPD', 28, 32);
+  ctx.fillText('SPD', px(7), px(8));
 
   // Below base speed the bar is dim; earned speed lights up.
-  const barX = 112;
-  const barW = 192;
+  const barX = px(28);
+  const barW = px(48);
   ctx.fillStyle = '#2a2033';
-  ctx.fillRect(barX, 36, barW, 24);
+  ctx.fillRect(barX, px(9), barW, px(6));
   ctx.fillStyle = P.hudDim;
-  ctx.fillRect(barX, 36, Math.round(barW * clamp(p.vx / T.maxSpeed, 0, 1)), 24);
+  ctx.fillRect(barX, px(9), Math.round(barW * clamp(p.vx / T.maxSpeed, 0, 1)), px(6));
   if (earned > 0) {
     const baseFrac = T.baseSpeed / T.maxSpeed;
     ctx.fillStyle = P.goal;
     ctx.fillRect(
       barX + Math.round(barW * baseFrac),
-      36,
+      px(9),
       Math.round(barW * earned * (1 - baseFrac)),
-      24,
+      px(6),
     );
   }
 }
 
-function drawTimer(ctx: CanvasRenderingContext2D, world: World): void {
-  const ms = world.finishedMs ?? world.timeMs;
-  ctx.fillStyle = P.hudBack;
-  ctx.fillRect(VIEW_W - 200, 16, 184, 64);
-  ctx.fillStyle = P.hud;
-  ctx.fillText((ms / 1000).toFixed(2).padStart(6, ' '), VIEW_W - 184, 32);
-}
-
+/** Second row, top-left — deliberately not the bottom corner a thumb covers. */
 function drawTally(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.fillStyle = P.hudBack;
-  ctx.fillRect(16, VIEW_H - 80, 528, 64);
+  ctx.fillRect(px(4), px(22), px(132), px(16));
   ctx.fillStyle = P.hudDim;
-  ctx.fillText('DEATHS', 28, VIEW_H - 64);
+  ctx.fillText('DEATHS', px(7), px(26));
   ctx.fillStyle = P.hud;
-  ctx.fillText(String(world.deaths), 208, VIEW_H - 64);
+  ctx.fillText(String(world.deaths), px(52), px(26));
   ctx.fillStyle = P.hudDim;
-  ctx.fillText('BODIES USED', 272, VIEW_H - 64);
+  ctx.fillText('BODIES', px(68), px(26));
   ctx.fillStyle = P.corpseEdge;
-  ctx.fillText(String(world.corpsesUsed.size), 512, VIEW_H - 64);
+  ctx.fillText(String(world.corpsesUsed.size), px(112), px(26));
 }
 
 function drawSegmentName(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.fillStyle = P.hudDim;
   ctx.textAlign = 'center';
-  ctx.fillText(world.level.segmentNameAt(world.player.x).toUpperCase(), VIEW_W / 2, 32);
+  ctx.fillText(world.level.segmentNameAt(world.player.x).toUpperCase(), VIEW_W / 2, px(8));
   ctx.textAlign = 'left';
+}
+
+/** Left of the corner, so the tuner button can own the corner itself. */
+function drawTimer(ctx: CanvasRenderingContext2D, world: World): void {
+  const ms = world.finishedMs ?? world.timeMs;
+  ctx.fillStyle = P.hudBack;
+  ctx.fillRect(VIEW_W - px(88), px(4), px(46), px(16));
+  ctx.fillStyle = P.hud;
+  ctx.fillText((ms / 1000).toFixed(2).padStart(6, ' '), VIEW_W - px(84), px(8));
 }
 
 function drawDeathBanner(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.textAlign = 'center';
   ctx.fillStyle = P.hazard;
-  ctx.fillText(`DIED AT ${world.lastDeathAt.toUpperCase()}`, VIEW_W / 2, VIEW_H / 2 - 48);
+  ctx.fillText(`DIED AT ${world.lastDeathAt.toUpperCase()}`, VIEW_W / 2, VIEW_H / 2 - px(12));
   ctx.fillStyle = P.hudDim;
-  ctx.fillText('your body stays behind', VIEW_W / 2, VIEW_H / 2 + 8);
+  ctx.fillText('your body stays behind', VIEW_W / 2, VIEW_H / 2 + px(2));
   ctx.textAlign = 'left';
 }
 
@@ -94,36 +102,36 @@ function drawFinish(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.textAlign = 'center';
 
   ctx.fillStyle = P.goal;
-  ctx.font = 'bold 64px monospace';
-  ctx.fillText('YAHIA', VIEW_W / 2, VIEW_H / 2 - 176);
+  ctx.font = `bold ${px(16)}px monospace`;
+  ctx.fillText('YAHIA', VIEW_W / 2, VIEW_H / 2 - px(44));
 
-  ctx.font = 'bold 32px monospace';
+  ctx.font = `bold ${px(8)}px monospace`;
   ctx.fillStyle = P.hud;
-  ctx.fillText(`TIME  ${((world.finishedMs ?? 0) / 1000).toFixed(2)}s`, VIEW_W / 2, VIEW_H / 2 - 72);
-  ctx.fillText(`DEATHS  ${world.deaths}`, VIEW_W / 2, VIEW_H / 2 - 24);
-  ctx.fillText(`TOP SPEED  ${Math.round(world.topSpeed)}`, VIEW_W / 2, VIEW_H / 2 + 24);
+  ctx.fillText(`TIME  ${((world.finishedMs ?? 0) / 1000).toFixed(2)}s`, VIEW_W / 2, VIEW_H / 2 - px(18));
+  ctx.fillText(`DEATHS  ${world.deaths}`, VIEW_W / 2, VIEW_H / 2 - px(6));
+  ctx.fillText(`TOP SPEED  ${Math.round(world.topSpeed / px(1))}`, VIEW_W / 2, VIEW_H / 2 + px(6));
   ctx.fillStyle = P.corpseEdge;
-  ctx.fillText(`BODIES CLIMBED  ${world.corpsesUsed.size}`, VIEW_W / 2, VIEW_H / 2 + 72);
+  ctx.fillText(`BODIES CLIMBED  ${world.corpsesUsed.size}`, VIEW_W / 2, VIEW_H / 2 + px(18));
 
   ctx.fillStyle = P.hudDim;
-  ctx.fillText('TAP OR PRESS R FOR A NEW TRACK', VIEW_W / 2, VIEW_H / 2 + 152);
+  ctx.fillText('TAP FOR A NEW TRACK', VIEW_W / 2, VIEW_H / 2 + px(38));
   ctx.textAlign = 'left';
 }
 
 function drawTouchHints(ctx: CanvasRenderingContext2D): void {
   ctx.globalAlpha = 0.16;
   ctx.fillStyle = P.playerSash;
-  ctx.fillRect(0, VIEW_H - 360, VIEW_W / 2, 360);
+  ctx.fillRect(0, VIEW_H - px(90), VIEW_W / 2, px(90));
   ctx.fillStyle = P.goal;
-  ctx.fillRect(VIEW_W / 2, VIEW_H - 360, VIEW_W / 2, 360);
+  ctx.fillRect(VIEW_W / 2, VIEW_H - px(90), VIEW_W / 2, px(90));
   ctx.globalAlpha = 1;
 
   ctx.textAlign = 'center';
   ctx.fillStyle = P.hud;
-  ctx.fillText('HOLD TO SLIDE', VIEW_W * 0.25, VIEW_H - 208);
-  ctx.fillText('TAP TO JUMP', VIEW_W * 0.75, VIEW_H - 208);
+  ctx.fillText('HOLD TO SLIDE', VIEW_W * 0.25, VIEW_H - px(52));
+  ctx.fillText('TAP TO JUMP', VIEW_W * 0.75, VIEW_H - px(52));
   ctx.fillStyle = P.hudDim;
-  ctx.fillText('slide off a slope to build speed', VIEW_W / 2, VIEW_H - 112);
-  ctx.fillText('slide + jump = long and flat', VIEW_W / 2, VIEW_H - 64);
+  ctx.fillText('slide off a slope to build speed', VIEW_W / 2, VIEW_H - px(28));
+  ctx.fillText('slide + jump = long and flat', VIEW_W / 2, VIEW_H - px(16));
   ctx.textAlign = 'left';
 }
