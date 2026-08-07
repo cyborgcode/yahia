@@ -34,6 +34,7 @@ let showHints = true;
 (window as unknown as { yahia: World; yahiaInput: Input }).yahia = world;
 (window as unknown as { yahia: World; yahiaInput: Input }).yahiaInput = input;
 (window as unknown as { yahiaScale: number }).yahiaScale = SCALE;
+(window as unknown as { yahiaRenderer: Renderer }).yahiaRenderer = renderer;
 (window as unknown as { yahiaSprites: unknown }).yahiaSprites = {
   SPRITES,
   PALETTE: SPRITE_PALETTE,

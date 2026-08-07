@@ -76,4 +76,48 @@ for (const rate of [1, 4, 6]) {
   console.log(`  ${label.padEnd(22)} ${r.fps.toFixed(1)} fps`);
 }
 
+// Per-stage cost by elimination. Timing the calls is useless — Canvas2D queues
+// work, so a stage can issue in 0.3ms and cost the whole frame to rasterise.
+// Nulling a stage and re-measuring frame rate is the only honest read.
+console.log('\ncost per draw stage (4x throttle, fps with the stage removed):');
+const device = DEVICES[1];
+async function fpsWithout(stage) {
+  const page = await browser.newPage({
+    viewport: { width: device.w, height: device.h },
+    deviceScaleFactor: device.dpr,
+  });
+  const cdp = await page.context().newCDPSession(page);
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(400);
+  await page.evaluate((name) => {
+    if (name) window.yahiaRenderer[name] = function () {};
+  }, stage);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+  await page.waitForTimeout(250);
+  const fps = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        let frames = 0;
+        const t0 = performance.now();
+        const tick = () => {
+          frames++;
+          const dt = performance.now() - t0;
+          if (dt < 2000) requestAnimationFrame(tick);
+          else resolve((frames * 1000) / dt);
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+  await page.close();
+  return fps;
+}
+const baseline = await fpsWithout(null);
+console.log(`  ${'baseline'.padEnd(22)} ${baseline.toFixed(1)} fps`);
+for (const stage of ['drawSky', 'drawTowers', 'drawTiles', 'drawCorpses', 'drawPlayer']) {
+  const f = await fpsWithout(stage);
+  const gain = f - baseline;
+  const flag = gain > 8 ? '   <-- dominant cost' : '';
+  console.log(`  ${('without ' + stage).padEnd(22)} ${f.toFixed(1)} fps  (+${gain.toFixed(1)})${flag}`);
+}
+
 await browser.close();

@@ -6,32 +6,33 @@ import { VIEW_H, VIEW_W } from '../game/view';
 import type { World } from '../game/world';
 import { P } from './palette';
 import { RUN_CYCLE, SpriteBank, type SpriteName } from './sprites';
-import { TileBank } from './tileart';
+import { TileBank, TowerBank } from './tileart';
 
 interface Tower {
   x: number;
   y: number;
-  w: number;
-  h: number;
-  /** Stable per-tower randomness for merlons and window rows. */
-  seed: number;
+  /** Which baked silhouette this instance blits. */
+  variant: number;
 }
 
-/** Enough silhouettes to cover the scrolled distance of one parallax layer. */
+/** Enough placements to cover the scrolled distance of one parallax layer. */
 function towerRow(
   rng: Rng,
   scrolledWidth: number,
   spacing: number,
   baseY: number,
-  widths: [number, number],
   heights: [number, number],
+  variantCount: number,
 ): Tower[] {
   const count = Math.ceil((scrolledWidth + VIEW_W) / spacing) + 4;
   const out: Tower[] = [];
   for (let i = 0; i < count; i++) {
-    const w = rng.int(widths[0], widths[1]);
     const h = rng.int(heights[0], heights[1]);
-    out.push({ x: i * spacing + rng.int(-spacing / 4, spacing / 4), y: baseY - h, w, h, seed: rng.int(0, 4095) });
+    out.push({
+      x: i * spacing + rng.int(-spacing / 4, spacing / 4),
+      y: baseY - h,
+      variant: rng.int(0, variantCount - 1),
+    });
   }
   return out;
 }
@@ -51,7 +52,22 @@ export class Renderer {
   private nearTowers: Tower[] = [];
   private builtForSeed = -1;
   private readonly sprites = new SpriteBank();
+  /**
+   * Per-stage draw cost, in ms, as an exponential moving average. Off unless
+   * asked for: on a mobile-first game the only way to find a fill-rate
+   * regression is to measure which stage actually costs it.
+   */
+  readonly timings: Record<string, number> = {};
+  profiling = false;
+  /** Flat tiles instead of textured — the low-end fallback, and an A/B handle. */
+  flatTiles = false;
+  /** Diagnostic: skip all drawing to isolate simulation cost from render cost. */
+  enabled = true;
+  private stageStart = 0;
   private readonly tiles = new TileBank();
+  private readonly sky = this.bakeSky();
+  private readonly farBank = new TowerBank(0x51ed, P.ruinFar, P.ruinWindow, [px(14), px(34)], false);
+  private readonly nearBank = new TowerBank(0xb00c, P.ruinNear, P.ruinWindow, [px(20), px(52)], true);
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -64,6 +80,7 @@ export class Renderer {
   }
 
   draw(world: World): void {
+    if (!this.enabled) return;
     const ctx = this.ctx;
     if (this.builtForSeed !== world.seed) this.buildBackdrop(world.seed, world.level.pxWidth);
 
@@ -71,37 +88,67 @@ export class Renderer {
     const camX = Math.round(world.camX);
     const camY = Math.round(world.camY);
 
+    if (this.profiling) this.stageStart = performance.now();
     this.drawSky();
-    this.drawTowers(this.farTowers, camX, camY, 0.2, P.ruinFar, P.ruinWindow);
-    this.drawTowers(this.nearTowers, camX, camY, 0.45, P.ruinNear, P.ruinWindow);
+    this.mark('sky');
+    this.drawTowers(this.farTowers, this.farBank, camX, camY, 0.2);
+    this.drawTowers(this.nearTowers, this.nearBank, camX, camY, 0.45);
+    this.mark('towers');
     this.drawTiles(world, camX, camY);
+    this.mark('tiles');
     this.drawCheckpoints(world, camX, camY);
     this.drawCorpses(world, camX, camY);
     this.drawPlayer(world, camX, camY);
+    this.mark('actors');
 
     ctx.imageSmoothingEnabled = false;
+  }
+
+  private mark(name: string): void {
+    if (!this.profiling) return;
+    const now = performance.now();
+    const dt = now - this.stageStart;
+    this.timings[name] = (this.timings[name] ?? dt) * 0.9 + dt * 0.1;
+    this.stageStart = now;
   }
 
   get context(): CanvasRenderingContext2D {
     return this.ctx;
   }
 
-  private drawSky(): void {
-    const ctx = this.ctx;
+  /**
+   * The sky is baked once, not drawn.
+   *
+   * Two full-screen gradients rasterised every frame cost the entire frame
+   * budget: nulling this stage alone took a 4x-throttled phone profile from
+   * 20.6fps to 60.3fps. Nothing here ever changes — it does not even scroll —
+   * so it becomes one opaque blit.
+   */
+  private bakeSky(): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = VIEW_W;
+    canvas.height = VIEW_H;
+    const ctx = canvas.getContext('2d', { alpha: false })!;
+
     const grad = ctx.createLinearGradient(0, 0, 0, VIEW_H);
     grad.addColorStop(0, P.skyTop);
     grad.addColorStop(1, P.skyBottom);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
-    // Haze sitting on the horizon, so the sky has depth instead of being a
-    // single flat ramp behind the ruins.
+    // Haze on the horizon, so the sky has depth instead of one flat ramp.
     const haze = ctx.createLinearGradient(0, VIEW_H * 0.42, 0, VIEW_H * 0.86);
     haze.addColorStop(0, 'rgba(120,72,96,0)');
     haze.addColorStop(0.55, 'rgba(140,84,104,0.16)');
     haze.addColorStop(1, 'rgba(120,72,96,0)');
     ctx.fillStyle = haze;
     ctx.fillRect(0, VIEW_H * 0.42, VIEW_W, VIEW_H * 0.44);
+
+    return canvas;
+  }
+
+  private drawSky(): void {
+    this.ctx.drawImage(this.sky, 0, 0);
   }
 
   /**
@@ -113,57 +160,28 @@ export class Renderer {
    */
   private buildBackdrop(seed: number, levelWidth: number): void {
     const rng = new Rng(seed ^ 0x9e3779b9);
-    this.farTowers = towerRow(rng, levelWidth * 0.2, px(46), px(205), [px(14), px(34)], [px(30), px(96)]);
-    this.nearTowers = towerRow(rng, levelWidth * 0.45, px(64), px(228), [px(20), px(52)], [px(24), px(70)]);
+    this.farTowers = towerRow(rng, levelWidth * 0.2, px(46), px(205), [px(30), px(96)], this.farBank.variants.length);
+    this.nearTowers = towerRow(rng, levelWidth * 0.45, px(64), px(228), [px(24), px(70)], this.nearBank.variants.length);
     this.builtForSeed = seed;
   }
 
   private drawTowers(
     towers: Tower[],
+    bank: TowerBank,
     camX: number,
     camY: number,
     factor: number,
-    color: string,
-    windowColor: string,
   ): void {
     const ctx = this.ctx;
     const ox = Math.round(camX * factor);
     // Damped and clamped, so the horizon stays put even in a long fall.
     const oy = Math.round(clamp((camY - px(300)) * factor * 0.12, -px(20), px(20)));
-    const merlon = Math.max(2, px(3));
 
     for (const t of towers) {
+      const img = bank.get(t.variant);
       const x = t.x - ox;
-      if (x + t.w < 0 || x > VIEW_W) continue;
-      const y = t.y - oy;
-
-      ctx.fillStyle = color;
-      ctx.fillRect(x, y + merlon, t.w, VIEW_H - y - merlon);
-
-      // Battlements: a ruined skyline reads as architecture, a flat rectangle
-      // reads as a bar chart.
-      const count = 2 + (t.seed % 3);
-      const step = t.w / (count * 2 + 1);
-      for (let i = 0; i <= count; i++) {
-        const mx = x + step * (i * 2);
-        const mh = merlon * (1 + ((t.seed >> (i + 1)) & 1));
-        ctx.fillRect(mx, y + merlon - mh, step, mh + merlon);
-      }
-
-      // Window slots. Skipped on the far layer, where they would be noise.
-      if (factor > 0.3) {
-        ctx.fillStyle = windowColor;
-        const gapX = px(9);
-        const gapY = px(11);
-        const wW = px(3);
-        const wH = px(5);
-        for (let wy = y + px(8); wy < VIEW_H; wy += gapY) {
-          for (let wx = x + px(3); wx + wW < x + t.w - px(2); wx += gapX) {
-            if (((wx | 0) * 31 + (wy | 0) * 17 + t.seed) % 5 === 0) continue;
-            ctx.fillRect(wx, wy, wW, wH);
-          }
-        }
-      }
+      if (x + img.width < 0 || x > VIEW_W) continue;
+      ctx.drawImage(img, x, t.y - oy);
     }
   }
 
@@ -183,13 +201,20 @@ export class Renderer {
         const y = ty * TILE - camY;
 
         switch (t) {
-          case Tile.Solid:
-            ctx.drawImage(
-              this.tiles.get(level.get(tx, ty - 1) === Tile.Empty ? 'top' : 'deep', tx, ty),
-              x,
-              y,
-            );
+          case Tile.Solid: {
+            const exposed = level.get(tx, ty - 1) === Tile.Empty;
+            if (this.flatTiles) {
+              ctx.fillStyle = exposed ? P.terrain : P.terrainDeep;
+              ctx.fillRect(x, y, TILE, TILE);
+              if (exposed) {
+                ctx.fillStyle = P.terrainLip;
+                ctx.fillRect(x, y, TILE, px(3));
+              }
+            } else {
+              ctx.drawImage(this.tiles.get(exposed ? 'top' : 'deep', tx, ty), x, y);
+            }
             break;
+          }
           case Tile.SlopeR:
             ctx.drawImage(this.tiles.get('slopeR', tx, ty), x, y);
             break;

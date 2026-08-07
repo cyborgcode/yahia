@@ -1,4 +1,7 @@
+import { Rng } from '../core/rng';
+import { px } from '../game/scale';
 import { TILE } from '../game/tiles';
+import { VIEW_H } from '../game/view';
 
 /**
  * Procedural tile textures, baked once into offscreen canvases at startup.
@@ -147,5 +150,70 @@ export class TileBank {
 
     ctx.putImageData(img, 0, 0);
     return canvas;
+  }
+}
+
+
+/**
+ * Backdrop towers, baked once into offscreen canvases.
+ *
+ * Drawing battlements and window slots with fillRect per frame cost ~5,000
+ * draw calls and took a 4x-throttled phone profile from 58fps to 21fps. The
+ * silhouettes never change, so they are baked at startup and blitted: a few
+ * dozen drawImage calls instead.
+ */
+export class TowerBank {
+  readonly variants: HTMLCanvasElement[] = [];
+
+  constructor(
+    seed: number,
+    color: string,
+    windowColor: string,
+    widthRange: [number, number],
+    withWindows: boolean,
+    count = 6,
+  ) {
+    const rng = new Rng(seed);
+    const height = VIEW_H + px(60);
+    const merlon = Math.max(2, px(3));
+
+    for (let v = 0; v < count; v++) {
+      const w = rng.int(widthRange[0], widthRange[1]);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d')!;
+
+      ctx.fillStyle = color;
+      ctx.fillRect(0, merlon, w, height - merlon);
+
+      // Battlements: a ruined skyline reads as architecture; a flat-topped
+      // rectangle reads as a bar chart.
+      const merlons = 2 + rng.int(0, 2);
+      const step = w / (merlons * 2 + 1);
+      for (let i = 0; i <= merlons; i++) {
+        const mh = merlon * (1 + rng.int(0, 1));
+        ctx.fillRect(step * (i * 2), merlon - mh, step, mh + merlon);
+      }
+
+      if (withWindows) {
+        ctx.fillStyle = windowColor;
+        const gapX = px(9);
+        const gapY = px(11);
+        const wW = px(3);
+        const wH = px(5);
+        for (let wy = px(8); wy < height; wy += gapY) {
+          for (let wx = px(3); wx + wW < w - px(2); wx += gapX) {
+            if (rng.next() < 0.2) continue;
+            ctx.fillRect(wx, wy, wW, wH);
+          }
+        }
+      }
+      this.variants.push(canvas);
+    }
+  }
+
+  get(index: number): HTMLCanvasElement {
+    return this.variants[index % this.variants.length]!;
   }
 }
