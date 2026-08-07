@@ -104,6 +104,17 @@ apps/client/src/
 tools/      playtest · bench · spritesheet · shot · slice_sheets.py
 ```
 
+**Biomes are a palette entry, not a tileset.** Tile and backdrop art is generated from a
+[`Theme`](apps/client/src/render/themes.ts), so a new biome is a colour table plus two
+style flags (`masonry`/`earth` ground, `towers`/`trees` backdrop). Two ship today —
+`?theme=forest` (default) and `?theme=ruins` — and the generator is deterministic, so the
+same seed gives the same track in each.
+
+Two rules survive every biome, because they are readability contracts rather than
+decoration: the hazard colour is one saturated red used nowhere else, and backdrop colours
+stay desaturated and far from the terrain in value so background can never be mistaken for
+floor.
+
 **Levels are stitched, not noise-generated.** A hand-authored library of challenge
 segments in [`segments.ts`](apps/client/src/game/segments.ts), each declaring a
 connection contract (ground row at its left and right edge). The generator only decides

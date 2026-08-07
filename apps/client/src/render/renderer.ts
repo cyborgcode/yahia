@@ -6,7 +6,8 @@ import { VIEW_H, VIEW_W } from '../game/view';
 import type { World } from '../game/world';
 import { P } from './palette';
 import { RUN_CYCLE, SpriteBank, type SpriteName } from './sprites';
-import { TileBank, TowerBank } from './tileart';
+import { BackdropBank, TileBank } from './tileart';
+import { THEME } from './themes';
 
 interface Tower {
   x: number;
@@ -66,8 +67,8 @@ export class Renderer {
   private stageStart = 0;
   private readonly tiles = new TileBank();
   private readonly sky = this.bakeSky();
-  private readonly farBank = new TowerBank(0x51ed, P.ruinFar, P.ruinWindow, [px(14), px(34)], false);
-  private readonly nearBank = new TowerBank(0xb00c, P.ruinNear, P.ruinWindow, [px(20), px(52)], true);
+  private readonly farBank = new BackdropBank(0x51ed, THEME.far, THEME.detail, [px(14), px(34)], false);
+  private readonly nearBank = new BackdropBank(0xb00c, THEME.near, THEME.detail, [px(20), px(52)], true);
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -131,16 +132,16 @@ export class Renderer {
     const ctx = canvas.getContext('2d', { alpha: false })!;
 
     const grad = ctx.createLinearGradient(0, 0, 0, VIEW_H);
-    grad.addColorStop(0, P.skyTop);
-    grad.addColorStop(1, P.skyBottom);
+    grad.addColorStop(0, THEME.skyTop);
+    grad.addColorStop(1, THEME.skyBottom);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 
     // Haze on the horizon, so the sky has depth instead of one flat ramp.
     const haze = ctx.createLinearGradient(0, VIEW_H * 0.42, 0, VIEW_H * 0.86);
-    haze.addColorStop(0, 'rgba(120,72,96,0)');
-    haze.addColorStop(0.55, 'rgba(140,84,104,0.16)');
-    haze.addColorStop(1, 'rgba(120,72,96,0)');
+    haze.addColorStop(0, `rgba(${THEME.haze},0)`);
+    haze.addColorStop(0.55, `rgba(${THEME.haze},0.16)`);
+    haze.addColorStop(1, `rgba(${THEME.haze},0)`);
     ctx.fillStyle = haze;
     ctx.fillRect(0, VIEW_H * 0.42, VIEW_W, VIEW_H * 0.44);
 
@@ -167,7 +168,7 @@ export class Renderer {
 
   private drawTowers(
     towers: Tower[],
-    bank: TowerBank,
+    bank: BackdropBank,
     camX: number,
     camY: number,
     factor: number,
@@ -204,10 +205,10 @@ export class Renderer {
           case Tile.Solid: {
             const exposed = level.get(tx, ty - 1) === Tile.Empty;
             if (this.flatTiles) {
-              ctx.fillStyle = exposed ? P.terrain : P.terrainDeep;
+              ctx.fillStyle = exposed ? THEME.body : THEME.bodyDeep;
               ctx.fillRect(x, y, TILE, TILE);
               if (exposed) {
-                ctx.fillStyle = P.terrainLip;
+                ctx.fillStyle = THEME.cap;
                 ctx.fillRect(x, y, TILE, px(3));
               }
             } else {
@@ -226,7 +227,7 @@ export class Renderer {
             const fuse = world.fuseAt(tx, ty);
             if (fuse !== null) {
               // Telegraph the collapse: cracks widen as the fuse burns.
-              ctx.fillStyle = P.terrainDeep;
+              ctx.fillStyle = THEME.bodyDeep;
               const n = 1 + Math.floor(fuse * 4);
               for (let i = 0; i < n; i++) {
                 ctx.fillRect(x + px(2) + i * px(3), y + px(3), px(1), TILE - px(4));
@@ -257,7 +258,7 @@ export class Renderer {
     for (let i = 0; i < n; i++) {
       const sx = x + i * w;
       const tip = y + TILE - px(9);
-      ctx.fillStyle = P.hazardDark;
+      ctx.fillStyle = THEME.hazardDark;
       ctx.beginPath();
       ctx.moveTo(sx, y + TILE);
       ctx.lineTo(sx + w / 2, tip);
@@ -265,7 +266,7 @@ export class Renderer {
       ctx.closePath();
       ctx.fill();
       // Lit left face, so a spike reads as a solid object rather than a flat cut-out.
-      ctx.fillStyle = P.hazard;
+      ctx.fillStyle = THEME.hazard;
       ctx.beginPath();
       ctx.moveTo(sx + w * 0.12, y + TILE);
       ctx.lineTo(sx + w / 2, tip);
@@ -273,7 +274,7 @@ export class Renderer {
       ctx.closePath();
       ctx.fill();
     }
-    ctx.fillStyle = P.hazardDark;
+    ctx.fillStyle = THEME.hazardDark;
     ctx.fillRect(x, y + TILE - px(1), TILE, px(1));
   }
 

@@ -145,10 +145,15 @@ The remaining option, if the bars ever feel wasteful: keep the tile count fixed
 horizontally and let vertical extent follow the device aspect. That fills the screen and
 preserves the look-ahead that matters, at the cost of per-device buffer sizes.
 
-**Theme: sun-bleached North African / Levantine ruins.** Ochre, terracotta, bone, lapis.
-Underused in platformers, and the palette naturally provides the value separation the
-readability rules demand. Biomes are then near-free variety — palette swap, tileset swap,
-one signature hazard: *Sunken Cistern*, *The Kiln*, *Salt Flats*, *The Ossuary*.
+**Biomes are near-free variety** — palette swap, tileset swap, one signature hazard — and
+that is now literally true: tile and backdrop art is generated from a `Theme` record, so
+adding one is a colour table plus two style flags. Two exist: **forest** (grass-capped
+earth, canopy backdrop) and **ruins** (sun-bleached North African stone, ochre and
+terracotta, battlement skyline). Still to come: *Sunken Cistern*, *The Kiln*, *Salt Flats*,
+*The Ossuary*.
+
+Whatever the biome, the hazard colour never moves. It is a contract with the player, not a
+mood.
 
 ---
 
