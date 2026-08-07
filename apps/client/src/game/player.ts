@@ -51,6 +51,9 @@ export class Player {
   /** Breakable tile currently underfoot, for the world to light a fuse on. */
   standingOnBreakable: { tx: number; ty: number } | null = null;
 
+  /** Ground distance covered, so the run cycle is driven by stride not by time. */
+  distance = 0;
+
   spawn(x: number, y: number): void {
     if (this.sliding) this.stopSlideRaw();
     this.x = x;
@@ -135,6 +138,7 @@ export class Player {
     const wasGrounded = this.grounded;
 
     this.x += this.vx * dt;
+    if (this.grounded) this.distance += this.vx * dt;
     const push = resolveHorizontal(level, corpses, this.box(), 1);
     if (push !== null) {
       this.x = push;

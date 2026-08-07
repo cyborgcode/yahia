@@ -12,6 +12,7 @@
     "build": "npm run build --workspace apps/client",
     "preview": "npm run preview --workspace apps/client",
     "typecheck": "npm run typecheck --workspace apps/client",
-    "playtest": "node tools/playtest.mjs"
+    "playtest": "node tools/playtest.mjs",
+    "spritesheet": "node tools/spritesheet.mjs"
   }
 }

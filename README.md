@@ -46,6 +46,24 @@ Speed is the resource. Base speed is what you drift back to; everything above it
 earned on slopes and spent on gaps. Going fast also *reduces* your look-ahead, so the
 camera gives you less reaction time the better you're doing.
 
+## The character
+
+YAHIA is drawn in [`sprites.ts`](apps/client/src/render/sprites.ts) as ASCII pixel data —
+dark curly hair, cream tee, pink shorts, navy sneakers, after the TUNISIA_HERO reference.
+
+Authored at the game's own resolution rather than downscaled from reference art: at 24px
+tall a detailed sprite turns to mush, so the silhouette has to be drawn for this size
+directly. Drawn in **right-facing profile** — an auto-runner only travels one way, and a
+front-facing figure with legs splayed sideways reads as a star jump however you animate it.
+
+Eight frames: a 4-frame run cycle (**driven by stride distance, not time**, so footfalls
+stay in step with speed), jump, fall, plus two the reference sheet has no equivalent for —
+**slide**, the game's second verb, and **corpse**, lying flat because a body is a platform.
+
+```bash
+npm run spritesheet   # validates the data and renders a contact sheet PNG
+```
+
 ## Tuning
 
 Press `T` (or tap ⚙) for live sliders over every constant in

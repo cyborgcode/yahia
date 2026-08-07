@@ -1,4 +1,5 @@
 import type { Input } from '../core/input';
+import { CORPSE_SPRITE_H, CORPSE_SPRITE_W } from '../render/sprites';
 import { buildLevel, type Checkpoint, type Level } from './level';
 import type { Corpse } from './physics';
 import { Player } from './player';
@@ -16,8 +17,8 @@ const BREAK_FUSE_MS = 260;
  * to land on deliberately, which kills the whole staircase mechanic. Laying it
  * down makes it a usable ledge and reads instantly as a fallen body.
  */
-const CORPSE_W = 20;
-const CORPSE_H = 10;
+const CORPSE_W = CORPSE_SPRITE_W;
+const CORPSE_H = CORPSE_SPRITE_H;
 
 export class World {
   level: Level;

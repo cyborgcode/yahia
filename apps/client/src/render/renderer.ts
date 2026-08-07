@@ -4,6 +4,7 @@ import { T } from '../game/tuning';
 import { VIEW_H, VIEW_W } from '../game/view';
 import type { World } from '../game/world';
 import { P } from './palette';
+import { RUN_CYCLE, SpriteBank, type SpriteName } from './sprites';
 
 interface Tower {
   x: number;
@@ -45,6 +46,7 @@ export class Renderer {
   private farTowers: Tower[] = [];
   private nearTowers: Tower[] = [];
   private builtForSeed = -1;
+  private readonly sprites = new SpriteBank();
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -234,8 +236,7 @@ export class Renderer {
       const x = c.x - camX;
       if (x + c.w < 0 || x > VIEW_W) continue;
       const y = c.y - camY;
-      const age = world.timeMs - c.born;
-      const left = T.corpseLifeMs - age;
+      const left = T.corpseLifeMs - (world.timeMs - c.born);
 
       // Fairness: a platform must never vanish unannounced.
       let alpha = 1;
@@ -245,12 +246,11 @@ export class Renderer {
       }
 
       ctx.globalAlpha = alpha;
-      ctx.fillStyle = P.corpse;
-      ctx.fillRect(x, y, c.w, c.h);
+      this.sprites.draw(ctx, 'corpse', x, y);
+      // The body is art; this line is the contract. Opacity means solidity, and
+      // a lit top edge is what says "stand here" at a glance.
       ctx.fillStyle = P.corpseEdge;
-      ctx.fillRect(x, y, c.w, 2);
-      ctx.fillRect(x, y, 1, c.h);
-      ctx.fillRect(x + c.w - 1, y, 1, c.h);
+      ctx.fillRect(x, y, c.w, 1);
       ctx.globalAlpha = 1;
     }
   }
@@ -259,8 +259,8 @@ export class Renderer {
     const p = world.player;
     if (!p.alive) return;
     const ctx = this.ctx;
-    const x = Math.round(p.x - camX);
-    const y = Math.round(p.y - camY);
+    const x = p.x - camX;
+    const y = p.y - camY;
 
     // Speed streaks: the momentum model needs to be legible at a glance.
     const speedT = clamp((p.vx - T.baseSpeed) / Math.max(1, T.maxSpeed - T.baseSpeed), 0, 1);
@@ -268,27 +268,24 @@ export class Renderer {
       ctx.globalAlpha = speedT * 0.5;
       ctx.fillStyle = P.playerSash;
       for (let i = 1; i <= 3; i++) {
-        ctx.fillRect(x - i * 7, y + 3 + i * 2, 5 + speedT * 8, 1);
+        ctx.fillRect(Math.round(x) - i * 7, Math.round(y) + 5 + i * 3, 5 + speedT * 8, 1);
       }
       ctx.globalAlpha = 1;
     }
 
-    ctx.fillStyle = P.playerShadow;
-    ctx.fillRect(x + 1, y + 1, p.w, p.h);
-    ctx.fillStyle = P.player;
-    ctx.fillRect(x, y, p.w, p.h);
-
-    ctx.fillStyle = P.playerSash;
-    if (p.sliding) {
-      ctx.fillRect(x, y + 3, p.w, 3);
-    } else {
-      ctx.fillRect(x, y + 7, p.w, 4);
-      ctx.fillRect(x + p.w - 4, y + 2, 4, 3);
-    }
+    this.sprites.draw(ctx, playerFrame(p), x, y);
 
     if (p.fastFalling) {
       ctx.fillStyle = P.playerSash;
-      ctx.fillRect(x + 2, y + p.h, p.w - 4, 3);
+      ctx.fillRect(Math.round(x) + 2, Math.round(y) + p.h, p.w - 4, 3);
     }
   }
+}
+
+/** Stride-driven, so footfalls stay in step with however fast you're moving. */
+function playerFrame(p: World['player']): SpriteName {
+  if (p.sliding) return 'slide';
+  if (!p.grounded) return p.vy < 0 ? 'jump' : 'fall';
+  const step = Math.floor(p.distance / 9) % RUN_CYCLE.length;
+  return RUN_CYCLE[step]!;
 }
