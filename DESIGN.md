@@ -38,7 +38,7 @@ to win on and they stay in the session. Two leaderboards: **Fastest** and **Most
 | Round | Race to a finish line, ~75s, hard 90s cap |
 | Collision | Living players are ghosts; **only corpses are solid** |
 | Levels | Procedurally stitched from a hand-authored segment library |
-| Art | Pixel art, 480×270 internal, sun-bleached ruins |
+| Art | Pixel art, 960×540 internal, 40×48 runner, sun-bleached ruins |
 
 ### Why non-solid players is the most important decision
 
@@ -127,6 +127,11 @@ feel unfair.
 
 This also solves the 12-colour palette problem for free: ghosts convey no identity, so
 they're all one neutral tone. Only corpses need player colour.
+
+The internal resolution is 960×540 with 32px tiles. It was doubled from 480×270 after the
+first art pass, and the doubling deliberately kept the **field of view identical** — same
+30 tiles across, same look-ahead, same reaction time — spending every new pixel on detail.
+Widening the view would have quietly made the game easier.
 
 **Theme: sun-bleached North African / Levantine ruins.** Ochre, terracotta, bone, lapis.
 Underused in platformers, and the palette naturally provides the value separation the

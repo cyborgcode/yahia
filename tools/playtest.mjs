@@ -55,14 +55,14 @@ const state = () =>
 
 // --- level built sanely ----------------------------------------------------
 const start = await state();
-check('level generated', start.levelW > 2000 && start.segments > 20,
+check('level generated', start.levelW > 4000 && start.segments > 20,
   `${start.segments} segments, ${start.levelW}px, ${start.checkpoints} checkpoints`);
 check('goal placed', start.goalX > 0, `goalX=${start.goalX}`);
 
 // --- auto-run --------------------------------------------------------------
 await sleep(1000);
 const ran = await state();
-check('auto-runs forward', ran.x > start.x + 60, `moved ${Math.round(ran.x - start.x)}px in 1s`);
+check('auto-runs forward', ran.x > start.x + 120, `moved ${Math.round(ran.x - start.x)}px in 1s`);
 
 // --- jump ------------------------------------------------------------------
 await page.evaluate(() => window.yahia.player.spawn(window.yahia.level.checkpoints[0].x, window.yahia.level.checkpoints[0].y));
@@ -72,7 +72,7 @@ await page.keyboard.down('Space');
 await sleep(120);
 const midJump = await state();
 await page.keyboard.up('Space');
-check('jump lifts the player', midJump.y < beforeJump.y - 10,
+check('jump lifts the player', midJump.y < beforeJump.y - 20,
   `rose ${Math.round(beforeJump.y - midJump.y)}px`);
 await sleep(600);
 
@@ -80,11 +80,11 @@ await sleep(600);
 await page.keyboard.down('ArrowDown');
 await sleep(200);
 const sliding = await state();
-check('slide halves the hitbox', sliding.h === 10 && sliding.sliding, `h=${sliding.h}`);
+check('slide halves the hitbox', sliding.h === 20 && sliding.sliding, `h=${sliding.h}`);
 await page.keyboard.up('ArrowDown');
 await sleep(300);
 const stood = await state();
-check('stands back up', stood.h === 20, `h=${stood.h}`);
+check('stands back up', stood.h === 40, `h=${stood.h}`);
 
 // --- the momentum claim: sliding a slope banks speed ------------------------
 // This is the design's central mechanical promise. If sliding a descent does
@@ -97,10 +97,10 @@ async function placeOnSlope() {
       w.level.placed.find((p) => p.name === 'descent') ??
       w.level.placed.find((p) => p.name === 'stairs');
     if (!seg) return false;
-    const tx = Math.floor(seg.x / 16) + 1;
+    const tx = Math.floor(seg.x / 32) + 1;
     let ty = 0;
     while (ty < w.level.h && w.level.get(tx, ty) === 0) ty++;
-    w.player.spawn(tx * 16 + 2, ty * 16);
+    w.player.spawn(tx * 32 + 4, ty * 32);
     return true;
   });
 }
@@ -136,8 +136,8 @@ if (await placeOnSlope()) {
   const sliding = await peakSpeedOverSlope(true);
   check('sliding a descent out-runs running it', sliding > running + 10,
     `slide peak ${Math.round(sliding)} vs run peak ${Math.round(running)}`);
-  check('slide banks speed above base', sliding > 150 * 1.1,
-    `peak ${Math.round(sliding)} vs base 150`);
+  check('slide banks speed above base', sliding > 300 * 1.1,
+    `peak ${Math.round(sliding)} vs base 300`);
 } else {
   check('descent segment present in track', false, 'no descent/stairs segment generated');
 }
@@ -159,25 +159,32 @@ check('death leaves a body', corpseTest.after > corpseTest.before,
 const standsOnCorpse = await page.evaluate(async () => {
   const w = window.yahia;
   const L = w.level;
-  // Find a column with three clear rows above solid ground: a deterministic
-  // pocket of open air to hang a body in.
+  const TILE = 32;
+  const { rows } = window.yahiaSprites.SPRITES.corpse;
+  const cw = rows[0].length;
+  const ch = rows.length;
+
+  // Two adjacent columns with three clear rows above solid ground: a
+  // deterministic pocket of open air wide enough to hang a body in.
   let spot = null;
+  const clear = (tx, ty) =>
+    L.get(tx, ty) === 0 && L.get(tx, ty + 1) === 0 && L.get(tx, ty + 2) === 0;
   for (let tx = 24; tx < L.w - 6 && spot === null; tx++) {
     for (let ty = 2; ty < L.h - 4; ty++) {
-      if (
-        L.get(tx, ty) === 0 && L.get(tx, ty + 1) === 0 &&
-        L.get(tx, ty + 2) === 0 && L.get(tx, ty + 3) === 1
-      ) { spot = { tx, ty }; break; }
+      if (clear(tx, ty) && clear(tx + 1, ty) && L.get(tx, ty + 3) === 1) {
+        spot = { tx, ty };
+        break;
+      }
     }
   }
   if (spot === null) return null;
 
   const corpse = {
-    x: spot.tx * 16, y: spot.ty * 16 + 38,
-    w: 20, h: 10, born: w.timeMs, where: 'test',
+    x: spot.tx * TILE, y: (spot.ty + 3) * TILE - ch,
+    w: cw, h: ch, born: w.timeMs, where: 'test',
   };
   w.corpses.push(corpse);
-  w.player.spawn(corpse.x + 2, corpse.y - 8);
+  w.player.spawn(corpse.x + 6, corpse.y - 8);
 
   // Sample the landing frame, not some later one: the runner never stops, so
   // by 350ms it has already crossed a 20px body and moved on.

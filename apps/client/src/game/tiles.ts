@@ -1,4 +1,4 @@
-export const TILE = 16;
+export const TILE = 32;
 
 /** Plain object rather than `const enum` — safe under isolatedModules. */
 export const Tile = {

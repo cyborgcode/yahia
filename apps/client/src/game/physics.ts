@@ -29,7 +29,7 @@ export interface GroundHit {
 }
 
 /** A lip this tall or shorter is run over rather than blocking you. */
-const STEP_UP = 5;
+const STEP_UP = 10;
 
 /**
  * Highest walkable surface under `sx` within the snap window.

@@ -1,10 +1,11 @@
 /**
  * Internal resolution. Everything is authored and simulated in these pixels,
- * then integer-scaled to fill the screen.
+ * then scaled to fill the screen.
  *
- * 480x270 is the balance point: chunky enough to read on a phone, wide enough
- * to give reaction time at speed. 320x180 looks better and cuts your
- * look-ahead, which is dangerous in a reaction-based runner.
+ * 960x540 is a clean 2x over the original 480x270. The doubling deliberately
+ * keeps the *field of view* identical — 30 tiles across, same look-ahead, same
+ * reaction time — and spends every new pixel on detail instead. Widening the
+ * view would have quietly made the game easier; this only makes it sharper.
  */
-export const VIEW_W = 480;
-export const VIEW_H = 270;
+export const VIEW_W = 960;
+export const VIEW_H = 540;

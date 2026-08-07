@@ -28,8 +28,11 @@ const dims = await page.evaluate(
     const { SPRITES, PALETTE } = window.yahiaSprites;
     const names = Object.keys(SPRITES);
     const cols = 4;
-    const cellW = 30 * scale;
-    const cellH = 30 * scale + 22;
+    // Cells sized from the largest sprite so the sheet adapts to art resolution.
+    const maxW = Math.max(...names.map((n) => SPRITES[n].rows[0].length));
+    const maxH = Math.max(...names.map((n) => SPRITES[n].rows.length));
+    const cellW = (maxW + 6) * scale;
+    const cellH = (maxH + 4) * scale + 22;
     const rows = Math.ceil(names.length / cols);
 
     const c = document.createElement('canvas');
