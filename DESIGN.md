@@ -152,38 +152,46 @@ The technique matters more than it sounds: the source shirt is cream, and a hue 
 of something that desaturated does nothing. Kits replace the colour and keep only the
 shading, so a garment stays a garment. See the README for how.
 
-Resolution is a single constant, `SCALE`. The **field of view is a fixed tile count —
-14 across, 30 down — at every scale, on every device, in both orientations**. No player
-may ever see further ahead than another, which in a race is a fairness requirement rather
-than a preference.
+Resolution is a single constant, `SCALE`. The **field of view is a fixed tile count
+ACROSS — 12 — at every scale, on every device, in both orientations**. No player may ever
+see further ahead than another, which in a race is a fairness requirement rather than a
+preference.
 
-It was 30 across while the game was landscape. Portrait cannot carry 30: a phone held
-upright is ~2.17× taller than wide, so the escape hatch this document used to reserve —
-hold the horizontal count, let vertical follow the device aspect — asks for 65 tiles of
-height out of a 40-tile level. You would be looking at void. 20 fit, but at 390 CSS pixels
-of phone that is a 19px tile and a runner 14px wide: a character you can lose track of on
-the thing you are meant to be watching. 14 across is a 28px tile.
+**The height is the device's.** A fixed buffer can only ever match one screen shape, and
+upright phones run from about 1:1.78 to 1:2.22 — a buffer cut for the tall end puts bars
+down both sides of the short end. So the width stays a fixed tile count, which is the half
+that has to be fair, and the height follows whatever screen it lands on, measured against
+the safe box rather than the raw window so the notch doesn't put the bars back.
 
-Narrowing costs look-ahead, and look-ahead is the thing a runner cannot be short of: the
-same camera anchor that bought 1.4s of warning at 30 tiles buys 0.6s at 14, against ~0.4s
-of touch latency and reaction. `cameraAnchor` dropped from 0.28 to 0.20 to buy it back to
-~0.86s — the runner sits further left, so more of a smaller window is track you haven't
-reached yet. **This is the floor.** Zooming further would start spending fairness rather
-than framing.
+That does mean vertical field of view varies between devices, and that is the right thing
+to give up. This is a horizontal race: what one player can see of the track *ahead* is a
+fairness question, and how much sky sits above them is not.
 
-The runner also sits **low** in the frame, not centred. A viewport that fills a phone is 30
-tiles tall against a playable band about half that, and centring him spent the whole bottom
-of the screen on earth nobody can reach. Everything worth seeing is above the ground line:
-jumps, hazards, and the corpse staircase, which climbs.
+The count came down 30 → 20 → 14 → 12 as the game moved to portrait and then chased a
+readable character. At 390 CSS pixels of phone, 20 tiles is a 19px tile and a runner 14px
+wide — someone you can lose track of on the thing you are meant to be watching. 12 is a
+32px tile and a runner of 24.
 
-That only works if the camera has room to move. At 40 grid rows against a 30-row viewport
-it had ten, and the framing was decided by the clamp rather than the camera; the grid is 60
-rows now. The extra rows cost nothing — everything above the track is clipped sky and
-everything below it is flooded flat.
+Zooming in is paid for in look-ahead, and look-ahead is the thing a runner cannot be short
+of: the anchor that bought 1.4s of warning at 30 tiles buys 0.55s at 12, against ~0.4s of
+touch latency and reaction. `cameraAnchor` (0.28 → 0.18) and `cameraLookAhead` together
+claw it back to ~0.84s — the runner sits further left, and the camera pushes further ahead
+the faster he goes, which spends the compensation exactly where the shortage bites.
+
+The runner also sits **low** in the frame, not centred. A viewport that fills a phone is
+~26 tiles tall against a playable band about half that, and centring him spent the whole
+bottom of the screen on earth nobody can reach. Everything worth seeing is above the ground
+line: jumps, hazards, and the corpse staircase, which climbs.
+
+That only works if the camera has room to move. At 40 grid rows it had ten, and the framing
+was decided by the clamp rather than the camera; the grid is 60 rows now. The extra rows
+cost nothing — everything above the track is clipped sky and everything below is flooded
+flat.
 
 `SCALE = 3` was chosen by measuring phones, not by taste, and the zoom vindicated it twice
-over: at 672×1458 the buffer is small enough that **every** phone in the bench upscales it,
-including the budget 720p Android that used to throw away 44% of what it had just rendered.
+over: at 576×1249 the buffer is 0.72 Mpx, small enough that **every** phone in the bench
+upscales it — including the budget 720p Android that once threw away 44% of what it had
+just rendered — and a 4× CPU throttle no longer costs anything measurable.
 
 **Anything below the crust is flooded, not tiled.** Three tiled rows of earth and then one
 rect per column to the bottom of the view. Tiling to the grid floor looks identical and

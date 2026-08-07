@@ -70,15 +70,13 @@ export const T = {
   /**
    * Player's resting position across the viewport, 0..1 from the left.
    *
-   * Lowered from 0.28 as the viewport narrowed — first to 20 tiles for portrait,
-   * then to 14 to make the runner big enough to watch. Look-ahead is what a
-   * narrower view actually costs you: at 0.28 of a 30-tile view you saw ~1.4s of
-   * track at top speed, and the same fraction of 14 tiles is 0.6s, against ~0.4s
-   * of touch latency plus reaction. Sitting the runner further left buys it back
-   * — 0.20 restores it to ~0.86s — and is why zooming further in would start to
-   * cost fairness rather than just framing.
+   * Lowered every time the viewport has narrowed — 30 tiles to 20 to 14 to 12.
+   * Look-ahead is what zooming in actually costs you: at 0.28 of a 30-tile view
+   * you saw ~1.4s of track at top speed, and the same fraction of 12 tiles is
+   * 0.55s, against ~0.4s of touch latency plus reaction. Sitting the runner
+   * further left buys it back.
    */
-  cameraAnchor: 0.2,
+  cameraAnchor: 0.18,
   /**
    * Where the runner sits down the viewport, 0..1 from the top.
    *
@@ -90,8 +88,13 @@ export const T = {
    * low turns dead ground into air you are about to be in.
    */
   cameraVerticalAnchor: 0.64,
-  /** Extra look-ahead at max speed, in pixels. Raised with the narrower view. */
-  cameraLookAhead: px(80),
+  /**
+   * Extra look-ahead at max speed, in pixels. Raised with each zoom: the anchor
+   * alone cannot pay for a narrower view, because it costs you sight of the
+   * track behind, and this only spends where the shortage actually bites —
+   * flat out, where the warning is thinnest. Together they restore ~0.84s.
+   */
+  cameraLookAhead: px(96),
   cameraSmooth: 9,
 };
 

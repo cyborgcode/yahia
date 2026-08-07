@@ -23,9 +23,9 @@ npm run bench        # mobile cost check: wasted pixels + throttled frame rate
 ```
 
 **This is a mobile game.** Phones held **upright** are the target, desktop is incidental.
-The viewport is 1:2.17 — a phone almost exactly — so it reaches all four edges with no
-letterbox and no controls taking up room. Landscape still plays, pillarboxed, and sees
-exactly the same 14 tiles of track.
+The viewport is **12 tiles wide on every device and as tall as the screen it lands on**, so
+it reaches all four edges of any upright phone or tablet with no letterbox and no controls
+taking up room. Landscape still plays, pillarboxed, and sees exactly the same 12 tiles.
 
 ## Controls
 
@@ -185,12 +185,18 @@ all answer one question — *what is the surface Y under this point* — so the 
 ever deals with a single number. See [`physics.ts`](apps/client/src/game/physics.ts).
 
 **Rendering is Canvas2D into a SCALE-derived backbuffer,** nearest-neighbour upscaled.
-Still not PixiJS: 60fps unthrottled and 59fps at a 4× CPU throttle, and everything
+Still not PixiJS: 60fps unthrottled and 60fps at a 4× CPU throttle, and everything
 renderer-shaped is behind one module if that stops being true.
 
-Zooming in to 14 tiles paid for itself twice: at 672×1458 the buffer is small enough that
-every phone in `npm run bench` — including the budget 720p Android that used to throw away
-44% of what it rendered — now *upscales* it. Fewer pixels, and none of them wasted.
+Zooming in paid for itself twice: at 576×1249 the buffer is 0.72 Mpx, small enough that
+every phone in `npm run bench` — including the budget 720p Android that once threw away 44%
+of what it rendered — now *upscales* it. Fewer pixels, and none of them wasted. A 4× CPU
+throttle costs nothing measurable any more.
+
+**The canvas fills the stage; `object-fit` letterboxes the picture inside it.** The obvious
+`width/height: auto` only ever *shrinks* a canvas to fit, so any screen wider than the
+buffer — a tablet — got the buffer at intrinsic size marooned in the middle of a much
+bigger screen.
 
 **Anything static is baked once, never drawn per frame.** Tile textures, backdrop trees
 and the sky all live in offscreen canvases. This is not premature — two full-screen
