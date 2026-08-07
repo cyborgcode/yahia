@@ -9,10 +9,16 @@ import { P } from './palette';
  * Drawn into the same backbuffer as the world, so the HUD lives on the same
  * pixel grid as everything else instead of floating above it in DOM.
  *
- * Layout is mobile-first: in landscape a player's thumbs sit over the bottom-left
- * and bottom-right corners for the whole round, so nothing readable goes there.
- * Every persistent readout is pinned to the top edge, which no thumb covers.
- * Only transient centre-screen text — death and finish — uses the middle.
+ * Layout is mobile-first: a player's thumbs sit over the bottom corners for the
+ * whole round, so nothing readable goes there. Every persistent readout is
+ * pinned to the top edge, which no thumb covers. Only transient centre-screen
+ * text — death and finish — uses the middle.
+ *
+ * There used to be a third readout up here naming the current segment. At 14
+ * tiles across there is no room for it: it collided with the speed bar on one
+ * side and the clock on the other. It was the one thing here a player never
+ * needed mid-run, and it still appears where it actually matters — on the death
+ * banner, telling you what killed you.
  */
 export function drawHud(ctx: CanvasRenderingContext2D, world: World, showHints: boolean): void {
   ctx.font = `bold ${px(8)}px monospace`;
@@ -20,7 +26,6 @@ export function drawHud(ctx: CanvasRenderingContext2D, world: World, showHints: 
 
   drawSpeed(ctx, world);
   drawTally(ctx, world);
-  drawSegmentName(ctx, world);
   drawTimer(ctx, world);
 
   if (!world.player.alive) drawDeathBanner(ctx, world);
@@ -72,28 +77,19 @@ function drawTally(ctx: CanvasRenderingContext2D, world: World): void {
 }
 
 /**
- * Boxed like every other readout. It used to sit bare on the sky, which was
- * legible while the sky was near-black and vanished the moment a biome shipped
- * a light one — HUD contrast cannot depend on the world behind it.
+ * Left of the corner, so the tuner button can own the corner itself.
+ *
+ * The gap is 28 rather than 42: the button is a fixed 44 CSS px whatever the
+ * viewport, and at 14 tiles across that is 28 of these units, not 42. Reserving
+ * the old figure wasted a fifth of the top bar on a screen that no longer has
+ * width to spare.
  */
-function drawSegmentName(ctx: CanvasRenderingContext2D, world: World): void {
-  const label = world.level.segmentNameAt(world.player.x).toUpperCase();
-  const w = ctx.measureText(label).width + px(16);
-  ctx.fillStyle = P.hudBack;
-  ctx.fillRect(VIEW_W / 2 - w / 2, px(4), w, px(16));
-  ctx.fillStyle = P.hud;
-  ctx.textAlign = 'center';
-  ctx.fillText(label, VIEW_W / 2, px(8));
-  ctx.textAlign = 'left';
-}
-
-/** Left of the corner, so the tuner button can own the corner itself. */
 function drawTimer(ctx: CanvasRenderingContext2D, world: World): void {
   const ms = world.finishedMs ?? world.timeMs;
   ctx.fillStyle = P.hudBack;
-  ctx.fillRect(VIEW_W - px(88), px(4), px(46), px(16));
+  ctx.fillRect(VIEW_W - px(74), px(4), px(46), px(16));
   ctx.fillStyle = P.hud;
-  ctx.fillText((ms / 1000).toFixed(2).padStart(6, ' '), VIEW_W - px(84), px(8));
+  ctx.fillText((ms / 1000).toFixed(2).padStart(6, ' '), VIEW_W - px(70), px(8));
 }
 
 function drawDeathBanner(ctx: CanvasRenderingContext2D, world: World): void {

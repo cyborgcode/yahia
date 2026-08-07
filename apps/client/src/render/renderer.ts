@@ -3,7 +3,7 @@ import { px } from '../game/scale';
 import { TILE, Tile, clamp } from '../game/tiles';
 import { T } from '../game/tuning';
 import { VIEW_H, VIEW_W } from '../game/view';
-import type { Level } from '../game/level';
+import { BASE_ROW, type Level } from '../game/level';
 import type { World } from '../game/world';
 import { P } from './palette';
 import { RUN_CYCLE, SpriteBank, type SpriteName } from './sprites';
@@ -35,13 +35,14 @@ interface Tower {
  * the ground line, and the camera centres the runner, so the ground line is the
  * middle of the viewport whatever its height. Anchor there instead.
  */
-const horizon = (belowGroundLine: number): number => VIEW_H / 2 + px(belowGroundLine);
+const horizon = (belowGroundLine: number): number =>
+  VIEW_H * T.cameraVerticalAnchor + px(belowGroundLine);
 
 /**
- * The camY at which a runner standing on the track's base row is centred, so
- * the backdrop drifts from rest rather than from an arbitrary world height.
+ * The camY at which a runner standing on the track's base row is at rest, so
+ * the backdrop drifts from there rather than from an arbitrary world height.
  */
-const BACKDROP_PIVOT = px(22 * 16) - VIEW_H / 2;
+const BACKDROP_PIVOT = px(BASE_ROW * 16) - VIEW_H * T.cameraVerticalAnchor;
 
 /** Enough placements to cover the scrolled distance of one parallax layer. */
 function towerRow(
@@ -412,16 +413,26 @@ export class Renderer {
     const ctx = this.ctx;
     const moon = frameRect('moon0');
     if (moon !== undefined) {
-      drawFrame(ctx, 'moon0', VIEW_W * 0.74 - camX * 0.04, px(24) - camY * 0.03);
+      // Wrapped, not merely offset. At 0.04 parallax the moon slid off the left
+      // edge about four thousand pixels into a track and never came back, so
+      // most of a run had an empty sky. Wrapping gives it back periodically.
+      const span = VIEW_W + moon[2];
+      const drift = (((VIEW_W * 0.74 - camX * 0.04) % span) + span) % span;
+      // Clear of the HUD, which owns the top two rows.
+      drawFrame(ctx, 'moon0', drift - moon[2], px(52) - camY * 0.03);
     }
     if (frameRect('tree') === undefined) return;
 
     // Scaled up with the taller portrait viewport: the canopies are what fill
     // the sky, and at the old sizes they topped out a third of the way down and
     // left a bare band above.
+    // Scaled up with the zoom, but only so far. At 1.95 a single trunk filled a
+    // third of the frame and read as something you could stand on — which is the
+    // background-becomes-floor confusion the palette rules exist to prevent, and
+    // a worse failure than an empty sky. Distant silhouettes, not scenery.
     for (const layer of [
-      { factor: 0.22, spacing: px(132), alpha: 0.72, scale: 0.95, base: horizon(71) },
-      { factor: 0.45, spacing: px(176), alpha: 1, scale: 1.3, base: horizon(95) },
+      { factor: 0.22, spacing: px(140), alpha: 0.72, scale: 1.15, base: horizon(71) },
+      { factor: 0.45, spacing: px(184), alpha: 1, scale: 1.5, base: horizon(95) },
     ]) {
       const img = (this.tiles as AtlasTiles).prop('tree', layer.scale);
       const ox = camX * layer.factor;

@@ -1,6 +1,6 @@
 import type { Input } from '../core/input';
 import { CORPSE_SPRITE_H, CORPSE_SPRITE_W } from '../render/sprites';
-import { buildLevel, type Checkpoint, type EnemySpawn, type Level } from './level';
+import { BASE_ROW, buildLevel, type Checkpoint, type EnemySpawn, type Level } from './level';
 import { enemyBox, type EnemyKind } from '../render/worldart';
 import type { Corpse } from './physics';
 import { Player } from './player';
@@ -47,7 +47,7 @@ export class World {
   constructor(seed: number) {
     this.seed = seed;
     this.level = buildLevel(seed);
-    this.checkpoint = this.level.checkpoints[0] ?? { x: 32, y: 22 * TILE };
+    this.checkpoint = this.level.checkpoints[0] ?? { x: 32, y: BASE_ROW * TILE };
     this.player.spawn(this.checkpoint.x, this.checkpoint.y);
     this.snapCamera();
   }
@@ -64,7 +64,7 @@ export class World {
     this.respawnMs = 0;
     this.finishedMs = null;
     this.lastDeathAt = '—';
-    this.checkpoint = this.level.checkpoints[0] ?? { x: 32, y: 22 * TILE };
+    this.checkpoint = this.level.checkpoints[0] ?? { x: 32, y: BASE_ROW * TILE };
     this.player.spawn(this.checkpoint.x, this.checkpoint.y);
     this.snapCamera();
   }
@@ -215,7 +215,7 @@ export class World {
       1,
     );
     const x = this.player.x - VIEW_W * T.cameraAnchor + speedT * T.cameraLookAhead;
-    const y = this.player.y + this.player.h / 2 - VIEW_H / 2;
+    const y = this.player.y + this.player.h / 2 - VIEW_H * T.cameraVerticalAnchor;
     return [x, y];
   }
 

@@ -38,7 +38,7 @@ to win on and they stay in the session. Two leaderboards: **Fastest** and **Most
 | Round | Race to a finish line, ~75s, hard 90s cap |
 | Collision | Living players are ghosts; **only corpses are solid** |
 | Levels | Procedurally stitched from a hand-authored segment library |
-| Orientation | Portrait — held upright, game on top, thumb pad below |
+| Orientation | Portrait — held upright, game edge to edge, no on-screen buttons |
 | Art | Reference sprite sheets, 960×1200 internal (SCALE 3) |
 
 ### Why non-solid players is the most important decision
@@ -71,14 +71,14 @@ virtual d-pad. Hence auto-run: two verbs, three techniques.
 camera; rivals are translucent ghosts drifting through frame. A shared world, twelve
 private windows onto it. This is why a race works on phones and an arena brawl doesn't.
 
-**3. Thumbs cover the bottom of the screen.** Nothing readable and nothing tappable may
-live there — a settings button in a thumb zone eats jump inputs, and a stats readout there
-is simply never seen. Every persistent readout is pinned to the top edge instead.
+**3. Thumbs cover the bottom of the screen.** Nothing readable may live there — a settings
+button in a thumb zone eats jump inputs, and a stats readout there is simply never seen.
+Every persistent readout is pinned to the top edge instead.
 
-Held upright this stops being a constraint and becomes a layout: the viewport is roughly
-square, so it fills the width and leaves the lower third empty — which is exactly where the
-thumbs already were. That space becomes the controller, and the game stops being played
-through its own picture.
+But nothing tappable needs to live there either, because **the whole screen is already the
+control**. A labelled pad below the game was a caption for something the screen does
+anyway, and it cost the game a third of the display to say it. The screen halves teach
+themselves in one round; the hint overlay covers the first.
 
 **4. Nobody can be eliminated.** Elimination in a 12-player session means eleven people
 watching. Death has to be instant-recovery — which the corpse mechanic already gives you.
@@ -153,29 +153,41 @@ of something that desaturated does nothing. Kits replace the colour and keep onl
 shading, so a garment stays a garment. See the README for how.
 
 Resolution is a single constant, `SCALE`. The **field of view is a fixed tile count —
-20 across, 25 down — at every scale and in both orientations**. No player may ever see
-further ahead than another, which in a race is a fairness requirement rather than a
-preference.
+14 across, 30 down — at every scale, on every device, in both orientations**. No player
+may ever see further ahead than another, which in a race is a fairness requirement rather
+than a preference.
 
 It was 30 across while the game was landscape. Portrait cannot carry 30: a phone held
 upright is ~2.17× taller than wide, so the escape hatch this document used to reserve —
 hold the horizontal count, let vertical follow the device aspect — asks for 65 tiles of
-height out of a 40-tile level. You would be looking at void. So the horizontal count came
-down and the vertical went up, giving a near-square window that fills a portrait screen
-and still fits a landscape one pillarboxed.
+height out of a 40-tile level. You would be looking at void. 20 fit, but at 390 CSS pixels
+of phone that is a 19px tile and a runner 14px wide: a character you can lose track of on
+the thing you are meant to be watching. 14 across is a 28px tile.
 
 Narrowing costs look-ahead, and look-ahead is the thing a runner cannot be short of: the
-same camera anchor that bought 1.4s of warning at 30 tiles buys 0.9s at 20, against ~0.4s
-of touch latency and reaction. `cameraAnchor` dropped from 0.28 to 0.22 to buy it back —
-the runner sits further left, so more of a smaller window is track you haven't reached yet.
+same camera anchor that bought 1.4s of warning at 30 tiles buys 0.6s at 14, against ~0.4s
+of touch latency and reaction. `cameraAnchor` dropped from 0.28 to 0.20 to buy it back to
+~0.86s — the runner sits further left, so more of a smaller window is track you haven't
+reached yet. **This is the floor.** Zooming further would start spending fairness rather
+than framing.
 
-`SCALE = 3` was chosen by measuring phones, not by taste. In portrait the buffer is 960
-wide against 1179 device pixels on a flagship, so it upscales slightly rather than wasting
-what it rendered; only a budget 720p Android downscales.
+The runner also sits **low** in the frame, not centred. A viewport that fills a phone is 30
+tiles tall against a playable band about half that, and centring him spent the whole bottom
+of the screen on earth nobody can reach. Everything worth seeing is above the ground line:
+jumps, hazards, and the corpse staircase, which climbs.
+
+That only works if the camera has room to move. At 40 grid rows against a 30-row viewport
+it had ten, and the framing was decided by the clamp rather than the camera; the grid is 60
+rows now. The extra rows cost nothing — everything above the track is clipped sky and
+everything below it is flooded flat.
+
+`SCALE = 3` was chosen by measuring phones, not by taste, and the zoom vindicated it twice
+over: at 672×1458 the buffer is small enough that **every** phone in the bench upscales it,
+including the budget 720p Android that used to throw away 44% of what it had just rendered.
 
 **Anything below the crust is flooded, not tiled.** Three tiled rows of earth and then one
 rect per column to the bottom of the view. Tiling to the grid floor looks identical and
-cost 11fps on a throttled phone at a 25-tile viewport. The sky is clipped the same way —
+cost 11fps on a throttled phone at a tall viewport. The sky is clipped the same way —
 painted only down to the deepest earth line in view, since nothing above it can show
 through, except down an open chasm where it correctly runs to the floor.
 

@@ -70,13 +70,26 @@ export const T = {
   /**
    * Player's resting position across the viewport, 0..1 from the left.
    *
-   * Lowered from 0.28 when the viewport narrowed to 20 tiles for portrait.
-   * Look-ahead is what a narrower view actually costs you: at 0.28 of a 30-tile
-   * view you saw ~1.4s of track at top speed, and the same fraction of a 20-tile
-   * view is 0.9s — less than the ~0.4s of touch latency plus reaction leaves you
-   * room for. Sitting the runner further left buys most of it back.
+   * Lowered from 0.28 as the viewport narrowed — first to 20 tiles for portrait,
+   * then to 14 to make the runner big enough to watch. Look-ahead is what a
+   * narrower view actually costs you: at 0.28 of a 30-tile view you saw ~1.4s of
+   * track at top speed, and the same fraction of 14 tiles is 0.6s, against ~0.4s
+   * of touch latency plus reaction. Sitting the runner further left buys it back
+   * — 0.20 restores it to ~0.86s — and is why zooming further in would start to
+   * cost fairness rather than just framing.
    */
-  cameraAnchor: 0.22,
+  cameraAnchor: 0.2,
+  /**
+   * Where the runner sits down the viewport, 0..1 from the top.
+   *
+   * Not the middle. A phone is 2.17 times taller than it is wide, so a viewport
+   * that fills one is 30 tiles tall against a playable band about half that —
+   * and centring the runner spent the entire bottom half of the screen on solid
+   * earth nobody can reach. Everything worth seeing is above the ground line:
+   * jumps, hazards, and the corpse staircase, which climbs. Sitting the runner
+   * low turns dead ground into air you are about to be in.
+   */
+  cameraVerticalAnchor: 0.64,
   /** Extra look-ahead at max speed, in pixels. Raised with the narrower view. */
   cameraLookAhead: px(80),
   cameraSmooth: 9,
@@ -105,5 +118,6 @@ export const TUNER_RANGES: Partial<Record<keyof Tuning, [number, number]>> = {
   slopeDecel: [0, px(1200)],
   slideSlopeMul: [1, 3],
   cameraAnchor: [0.1, 0.6],
+  cameraVerticalAnchor: [0.3, 0.85],
   cameraLookAhead: [0, px(160)],
 };

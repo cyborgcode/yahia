@@ -40,19 +40,6 @@ const input = new Input();
 input.attach(stage);
 
 /**
- * The portrait thumb pad lights up while a half is held. The pad is a label for
- * a screen half, not a button — input is still read from the whole stage — so
- * its lit state has to be driven from the input layer rather than CSS :active,
- * which would drop the moment a thumb slid off the element it started on.
- */
-const padSlide = document.querySelector<HTMLElement>('#pad-slide');
-const padJump = document.querySelector<HTMLElement>('#pad-jump');
-function syncPad(): void {
-  padSlide?.classList.toggle('on', input.slideHeld);
-  padJump?.classList.toggle('on', input.jumpHeld);
-}
-
-/**
  * Seeds come from the URL so a track is shareable — the same 4 bytes the
  * server will broadcast to twelve phones later.
  */
@@ -132,6 +119,5 @@ startLoop(
   () => {
     renderer.draw(world);
     drawHud(renderer.context, world, showHints);
-    syncPad();
   },
 );

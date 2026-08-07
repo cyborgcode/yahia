@@ -10,11 +10,21 @@ import { ENEMY_KINDS } from '../render/worldart';
 import { px } from './scale';
 import { CHAR_TO_TILE, TILE, Tile, isGround } from './tiles';
 
-const GRID_H = 40;
-const BASE_ROW = 22;
+/**
+ * The grid is much taller than the track ever uses, and that is the point.
+ *
+ * The camera can only honour where it wants to put the runner if it has room to
+ * move; clamped against the edge of the grid it puts him wherever the edge
+ * happens to fall. At 40 rows against a 30-row viewport there were 10 rows of
+ * travel and the framing was decided by the clamp, not by the camera. 60 rows
+ * leaves 30. The extra rows cost nothing to draw — everything above the track is
+ * clipped sky and everything below it is flooded flat.
+ */
+const GRID_H = 60;
+export const BASE_ROW = 34;
 /** Keep the track from wandering off the top or bottom of the grid. */
-const MIN_ROW = 8;
-const MAX_ROW = 30;
+const MIN_ROW = 20;
+const MAX_ROW = 42;
 /** Rows a segment must leave free under itself to be placeable. */
 const FILL_DEPTH = 3;
 /** How many recent segment names to avoid repeating. */

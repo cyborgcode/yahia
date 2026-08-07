@@ -23,8 +23,9 @@ npm run bench        # mobile cost check: wasted pixels + throttled frame rate
 ```
 
 **This is a mobile game.** Phones held **upright** are the target, desktop is incidental.
-The viewport is near-square, so portrait fills the width and hands the space below it to a
-thumb pad; landscape still plays, pillarboxed, and sees exactly the same 20 tiles of track.
+The viewport is 1:2.17 — a phone almost exactly — so it reaches all four edges with no
+letterbox and no controls taking up room. Landscape still plays, pillarboxed, and sees
+exactly the same 14 tiles of track.
 
 ## Controls
 
@@ -38,12 +39,12 @@ thumb pad; landscape still plays, pillarboxed, and sees exactly the same 20 tile
 Screen halves rather than gesture recognition: a swipe can't be recognised until it has
 moved, and that delay is exactly the latency a platformer can't afford.
 
-The **bottom of the screen is under a thumb** for the whole round, so nothing lives there:
-every HUD readout is pinned to the top edge and the tuner button sits in the top-right. In
-portrait that dead space is the labelled SLIDE/JUMP pad, which lights up on press — the pad
-is a label for a screen half rather than a button, so its lit state is driven from the input
-layer, not `:active`, which would drop the moment a thumb slid off it. Multi-touch is
-tracked per pointer, so slide and jump can be held together.
+The **bottom of the screen is under a thumb** for the whole round, so nothing readable
+lives there: every HUD readout is pinned to the top edge and the tuner button sits in the
+top-right. There are no on-screen buttons at all — the whole screen is the control, and a
+labelled pad below the game was just a caption for something the screen already does, paid
+for in the space the game could have used. Multi-touch is tracked per pointer, so slide and
+jump can be held together.
 
 ## The three techniques
 
@@ -184,8 +185,12 @@ all answer one question — *what is the surface Y under this point* — so the 
 ever deals with a single number. See [`physics.ts`](apps/client/src/game/physics.ts).
 
 **Rendering is Canvas2D into a SCALE-derived backbuffer,** nearest-neighbour upscaled.
-Still not PixiJS: 60fps unthrottled and 52fps at a 4× CPU throttle, and everything
+Still not PixiJS: 60fps unthrottled and 59fps at a 4× CPU throttle, and everything
 renderer-shaped is behind one module if that stops being true.
+
+Zooming in to 14 tiles paid for itself twice: at 672×1458 the buffer is small enough that
+every phone in `npm run bench` — including the budget 720p Android that used to throw away
+44% of what it rendered — now *upscales* it. Fewer pixels, and none of them wasted.
 
 **Anything static is baked once, never drawn per frame.** Tile textures, backdrop trees
 and the sky all live in offscreen canvases. This is not premature — two full-screen
