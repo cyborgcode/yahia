@@ -13,7 +13,11 @@ const APP = process.env.URL ?? 'http://127.0.0.1:4173';
 const ROOM = process.env.ROOM ?? 'ws://127.0.0.1:8787';
 const OUT = process.env.OUT ?? 'lobby.png';
 const CODE = `L${Date.now().toString(36).slice(-4).toUpperCase()}`;
-const NAMES = ['RAYEN', 'ABDERRAHMAN', 'ALFA'];
+const ALL = ['RAYEN', 'ABDERRAHMAN', 'ALFA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT'];
+// A full lobby is the case the panel has to survive: it grows downward until
+// it reaches the runner, which is the only time the layering between them
+// is visible at all.
+const NAMES = ALL.slice(0, Number(process.env.PLAYERS ?? 3));
 
 const browser = await chromium.launch();
 const pages = [];
@@ -25,7 +29,8 @@ for (let i = 0; i < NAMES.length; i++) {
   });
   await page.waitForSelector('#play', { timeout: 15000 });
   await page.fill('#name', NAMES[i]);
-  await page.locator('.kit').nth(i * 4).click();
+  // Distinct outfits that wrap rather than running off the end of the picker.
+  await page.locator('.kit').nth((i * 5) % 12).click();
   pages.push(page);
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -102,6 +102,10 @@
       #hero {
         height: min(44vh, 360px);
         width: auto;
+        /* The runner is the thing you came to look at, so where he and the
+           participants panel want the same pixels, he wins and the panel
+           passes behind him. */
+        z-index: 1;
         image-rendering: pixelated;
         image-rendering: crisp-edges;
       }
@@ -148,6 +152,7 @@
          title band, so the two can never collide however long the room code. */
       #roster {
         position: absolute;
+        z-index: 0;
         top: calc(env(safe-area-inset-top) + 104px);
         left: calc(env(safe-area-inset-left) + 14px);
         /* Wide enough for the worst case the name field allows: twelve
