@@ -159,6 +159,7 @@ export class Renderer {
     this.mark('tiles');
     this.drawCheckpoints(world, camX, camY);
     this.drawEnemies(world, camX, camY);
+    this.drawGhosts(world, camX, camY);
     this.drawCorpses(world, camX, camY);
     this.drawPlayer(world, camX, camY);
     this.mark('actors');
@@ -578,6 +579,28 @@ export class Renderer {
       ctx.globalAlpha = cp.x <= world.player.x ? 1 : 0.35;
       ctx.fillRect(x, cp.y - camY - px(18), px(2), px(18));
       ctx.fillRect(x + px(2), cp.y - camY - px(18), px(7), px(5));
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /**
+   * Rivals, at a quarter opacity and with no outline.
+   *
+   * Opacity means solidity, absolutely: a corpse is opaque and bright-edged
+   * because you can stand on it, and a living rival is faint because you cannot.
+   * On a small screen with eleven of them on it, any ambiguity about what holds
+   * your weight is fatal, so they are drawn before corpses and never over them.
+   */
+  private drawGhosts(world: World, camX: number, camY: number): void {
+    if (world.ghosts.length === 0) return;
+    const ctx = this.ctx;
+    ctx.globalAlpha = 0.25;
+    for (const g of world.ghosts) {
+      const x = g.x - camX;
+      if (x < -px(40) || x > VIEW_W + px(40)) continue;
+      const name: SpriteName =
+        g.state === 'slide' ? 'slide' : g.state === 'air' ? 'fall' : RUN_CYCLE[0]!;
+      this.sprites.draw(ctx, name, x, g.y - camY);
     }
     ctx.globalAlpha = 1;
   }

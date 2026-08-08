@@ -1,3 +1,4 @@
+import type { Finisher, Phase, RoomClient, RosterPlayer } from '../net/room';
 import {
   HERO_FRAMES,
   HERO_FRAME_H,
@@ -22,14 +23,18 @@ import {
  */
 
 const STORE_KEY = 'yahia.kit';
+const NAME_KEY = 'yahia.name';
 
 /** One frame every this many ms while showing off a newly picked colour. */
 const SPIN_MS = 90;
 
 export interface Boot {
-  /** Swap the status line for a live PLAY button. */
+  /** Swap the status line for a live PLAY (solo) or READY (room) button. */
   ready(onPlay: (kit: KitChoice) => void): void;
   kit(): KitChoice;
+  name(): string;
+  /** Bring the menu back between races, for the leaderboard and the rematch. */
+  reopen(finishers: Finisher[]): void;
 }
 
 /** Index into KIT_COMBOS. Zero is the supplied art's own cream over pink. */
@@ -44,7 +49,7 @@ function savedCombo(): number {
   return Number.isInteger(n) && n >= 0 && n < KIT_COMBOS.length ? n : DEFAULT_COMBO;
 }
 
-export function createBoot(): Boot {
+export function createBoot(room: RoomClient | null): Boot {
   let combo = savedCombo();
 
   const root = document.createElement('div');
@@ -62,6 +67,21 @@ export function createBoot(): Boot {
   const swatches = document.createElement('div');
   swatches.id = 'kits';
 
+  // Who you are. Only asked for when there is somebody to be it in front of.
+  const nameInput = document.createElement('input');
+  nameInput.id = 'name';
+  nameInput.type = 'text';
+  nameInput.maxLength = 12;
+  nameInput.autocomplete = 'off';
+  nameInput.spellcheck = false;
+  nameInput.placeholder = 'YOUR NAME';
+  nameInput.value = localStorage.getItem(NAME_KEY) ?? '';
+  nameInput.hidden = room === null || !room.enabled;
+
+  const roster = document.createElement('div');
+  roster.id = 'roster';
+  roster.hidden = nameInput.hidden;
+
   const foot = document.createElement('div');
   foot.id = 'boot-foot';
   const status = document.createElement('p');
@@ -69,7 +89,7 @@ export function createBoot(): Boot {
   status.textContent = 'loading';
   foot.append(status);
 
-  root.append(title, canvas, swatches, foot);
+  root.append(title, canvas, nameInput, swatches, roster, foot);
   document.body.append(root);
 
   // --- the turn ------------------------------------------------------------
@@ -124,23 +144,133 @@ export function createBoot(): Boot {
   });
   buttons[combo]?.classList.add('on');
 
+  // --- identity -------------------------------------------------------------
+  const myName = (): string => nameInput.value.trim() || 'RUNNER';
+  function pushIdentity(): void {
+    localStorage.setItem(NAME_KEY, nameInput.value.trim());
+    room?.identify(myName(), combo);
+  }
+  nameInput.addEventListener('input', pushIdentity);
+  buttons.forEach((b) => b.addEventListener('click', pushIdentity));
+
+  // --- the lobby ------------------------------------------------------------
+  // The roster is the whole reason to sit here: it is how you know the friend
+  // you sent the link to has actually arrived.
+  function drawRoster(players: RosterPlayer[], phase: Phase, finishers: Finisher[]): void {
+    roster.replaceChildren();
+    if (phase === 'over' && finishers.length > 0) {
+      const head = document.createElement('p');
+      head.className = 'roster-head';
+      head.textContent = 'FINISHED';
+      roster.append(head);
+      for (const f of finishers) {
+        const line = document.createElement('p');
+        line.className = 'roster-line done';
+        line.textContent = `${f.place}. ${f.name}  ${(f.ms / 1000).toFixed(2)}s`;
+        roster.append(line);
+      }
+      return;
+    }
+    const head = document.createElement('p');
+    head.className = 'roster-head';
+    const waiting = players.filter((p) => !p.ready).length;
+    head.textContent =
+      players.length <= 1
+        ? `ROOM ${room?.code ?? ''} — SHARE THE LINK`
+        : waiting === 0
+          ? 'ALL READY'
+          : `WAITING FOR ${waiting}`;
+    roster.append(head);
+    for (const p of players) {
+      const line = document.createElement('p');
+      line.className = `roster-line${p.ready ? ' on' : ''}`;
+      const kit = KIT_COMBOS[p.kit] ?? KIT_COMBOS[0]!;
+      const chip = document.createElement('span');
+      chip.className = 'roster-chip';
+      chip.style.background =
+        `linear-gradient(155deg, ${KITS[kit.shirt]!.color} 0 48%, ${KITS[kit.shorts]!.color} 48% 100%)`;
+      line.append(chip, document.createTextNode(p.name + (p.ready ? '  READY' : '')));
+      roster.append(line);
+    }
+  }
+
+  let button: HTMLButtonElement | null = null;
+  let iAmReady = false;
+
+  room?.on({
+    onRoster: (players, phase, finishers) => {
+      drawRoster(players, phase, finishers);
+      if (button !== null && phase === 'lobby') {
+        button.textContent = iAmReady ? 'WAITING…' : 'READY';
+        button.classList.toggle('waiting', iAmReady);
+      }
+    },
+    onConnection: (up) => {
+      if (!up) drawRoster([], 'lobby', []);
+    },
+  });
+
+  function show(): void {
+    root.classList.remove('gone');
+    if (!root.isConnected) document.body.append(root);
+  }
+
+  function hide(then: () => void): void {
+    root.classList.add('gone');
+    // Let the fade finish before handing over, so the first frame of the race
+    // is not drawn underneath a dissolving menu.
+    setTimeout(() => {
+      root.remove();
+      then();
+    }, 220);
+  }
+
   return {
     kit: () => KIT_COMBOS[combo]!,
+    name: myName,
+
     ready(onPlay) {
       status.remove();
-      const play = document.createElement('button');
-      play.id = 'play';
-      play.textContent = 'PLAY';
-      play.addEventListener('click', () => {
-        root.classList.add('gone');
-        // Let the fade finish before handing over, so the first frame of the
-        // race is not drawn underneath a dissolving menu.
-        setTimeout(() => {
-          root.remove();
-          onPlay(KIT_COMBOS[combo]!);
-        }, 220);
-      });
-      foot.append(play);
+      const b = document.createElement('button');
+      button = b;
+      b.id = 'play';
+
+      if (room !== null && room.enabled) {
+        // In a room you do not start the race, the room does. The button is a
+        // statement about you, and the race begins when it is true of everyone.
+        b.textContent = 'READY';
+        pushIdentity();
+        b.addEventListener('click', () => {
+          // Asking for a rematch is what clears the last race's result, not
+          // arriving at the screen that shows it — reopening used to reset the
+          // room immediately and wipe the finish order it had just drawn.
+          if (room.phase === 'over') room.again();
+          iAmReady = !iAmReady;
+          room.setReady(iAmReady);
+          b.textContent = iAmReady ? 'WAITING…' : 'READY';
+          b.classList.toggle('waiting', iAmReady);
+        });
+        room.on({
+          onStart: () => {
+            iAmReady = false;
+            hide(() => onPlay(KIT_COMBOS[combo]!));
+          },
+        });
+      } else {
+        b.textContent = 'PLAY';
+        b.addEventListener('click', () => hide(() => onPlay(KIT_COMBOS[combo]!)));
+      }
+      foot.append(b);
+    },
+
+    reopen(finishers) {
+      show();
+      iAmReady = false;
+      if (button !== null) {
+        button.textContent = room?.enabled === true ? 'READY' : 'PLAY';
+        button.classList.remove('waiting');
+      }
+      drawRoster([], room?.enabled === true ? 'over' : 'lobby', finishers);
     },
   };
 }

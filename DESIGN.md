@@ -261,7 +261,8 @@ Two things fall out for free:
 **Vercel** for the client — a pixel-art game is a static bundle plus texture atlases,
 which is exactly what its CDN is best at. Preview deploy per branch for playtesters.
 
-**Cloudflare Durable Objects** for the rooms. Vercel shipped native WebSockets (public
+**Cloudflare Durable Objects** for the rooms — now built, in `apps/server/`, as one object
+per room code via `idFromName`. Vercel shipped native WebSockets (public
 beta, June 2026), but connections pin to an instance with no cross-instance broadcast and
 a ~5 minute duration cap — twelve players in one room could land on different instances
 and never see each other, and a 10-minute session would be cut in half. A DO is exactly

@@ -16,6 +16,7 @@ import {
 import { loadWorldAtlas } from './render/worldart';
 import { loadHero } from './render/hero';
 import { createBoot } from './ui/boot';
+import { RoomClient } from './net/room';
 import { createTuner } from './ui/tuner';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
@@ -24,7 +25,10 @@ if (canvas === null || stage === null) throw new Error('missing stage');
 
 // Up before the awaits, so there is something to look at during them rather
 // than a black screen of unknown length.
-const boot = createBoot();
+// The room, if one is configured. With no server this is inert and the game is
+// exactly the single-player prototype it has always been.
+const room = new RoomClient();
+const boot = createBoot(room);
 
 // Atlases must decode BEFORE the renderer is constructed, not merely before the
 // loop starts: the tile bank bakes its canvases from the atlas image in the
@@ -65,6 +69,7 @@ let running = false;
 (window as unknown as { yahia: World; yahiaInput: Input }).yahiaInput = input;
 (window as unknown as { yahiaScale: number }).yahiaScale = SCALE;
 (window as unknown as { yahiaRenderer: Renderer }).yahiaRenderer = renderer;
+(window as unknown as { yahiaRoom: RoomClient }).yahiaRoom = room;
 (window as unknown as { yahiaSprites: unknown }).yahiaSprites = {
   manifest: ATLAS_MANIFEST,
   corpse: [CORPSE_SPRITE_W, CORPSE_SPRITE_H],
@@ -72,10 +77,15 @@ let running = false;
 };
 
 function newTrack(): void {
+  // Only solo. In a room the track is the room's, and picking your own would
+  // put you on a different course from everyone you are racing.
+  if (room.enabled) return;
   const seed = (Math.random() * 0xffffffff) >>> 0;
   history.replaceState(null, '', `#seed=${seed}`);
   world.reset(seed);
   showHints = true;
+  reportedFinish = false;
+  reportedDeaths = 0;
 }
 
 const tuner = createTuner(newTrack);
@@ -84,6 +94,26 @@ boot.ready((kit) => {
   setKit(kit);
   running = true;
 });
+
+// --- the race, when there is more than one of you ---------------------------
+room.on({
+  // Everybody rebuilds the same track from the same four bytes. No map data is
+  // ever sent, which is the entire reason the seed is the unit of a race.
+  onStart: (seed) => {
+    world.reset(seed);
+    showHints = false;
+    running = true;
+  },
+  // A rival's body is solid ground to you, exactly like your own.
+  onCorpse: (x, y) => world.addForeignCorpse(x, y),
+  onOver: (finishers) => {
+    running = false;
+    boot.reopen(finishers);
+  },
+});
+
+let reportedFinish = false;
+let reportedDeaths = 0;
 
 // Restarting: any tap once you've finished, or R at any time.
 stage.addEventListener('pointerdown', () => {
@@ -114,7 +144,29 @@ void keepAwake();
 
 startLoop(
   (dt) => {
-    if (running) world.step(dt, input);
+    if (!running) return;
+    world.step(dt, input);
+
+    if (room.enabled) {
+      // Re-read rather than hold: the net layer replaces this array on every
+      // packet, so a reference taken once at the start goes permanently stale.
+      world.ghosts = room.ghosts;
+      const p = world.player;
+      const now = performance.now();
+      room.position(p.x, p.y, p.sliding ? 'slide' : p.grounded ? 'run' : 'air', now);
+      // Counted, not observed. Watching for `alive` to be false between frames
+      // misses a death whose respawn timer had already run down, because the
+      // runner is back on his feet before the next check.
+      if (world.deaths > reportedDeaths) {
+        reportedDeaths = world.deaths;
+        const body = world.lastOwnCorpse;
+        if (body !== null) room.died(body.x, body.y);
+      }
+      if (world.finishedMs !== null && !reportedFinish) {
+        reportedFinish = true;
+        room.finished();
+      }
+    }
   },
   () => {
     renderer.draw(world);

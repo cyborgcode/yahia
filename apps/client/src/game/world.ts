@@ -40,6 +40,20 @@ export class World {
   lastDeathAt = '—';
   finishedMs: number | null = null;
 
+  /**
+   * Rivals, as of the last packet. Cosmetic only — living players are ghosts,
+   * so a position 120ms stale changes nothing about your run and is never
+   * reconciled. Written by the net layer, read by the renderer.
+   */
+  ghosts: readonly { id: string; x: number; y: number; state: string; kit: number }[] = [];
+  /**
+   * Where this runner's own last body fell. Paired with `deaths` it lets the net
+   * layer report deaths by counting them rather than by catching the moment
+   * `alive` goes false — which it can miss entirely, because a runner whose
+   * respawn timer is already zero is alive again on the very next step.
+   */
+  lastOwnCorpse: { x: number; y: number } | null = null;
+
   private respawnMs = 0;
   private checkpoint: Checkpoint;
   private fuses = new Map<number, number>();
@@ -139,6 +153,27 @@ export class World {
       h: CORPSE_H,
       born: this.timeMs,
       where: this.lastDeathAt,
+    });
+    this.lastOwnCorpse = { x: p.x + p.w / 2, y: p.y + p.h };
+    while (this.corpses.length > T.corpseCap) this.corpses.shift();
+  }
+
+  /**
+   * A rival's body, which is solid ground to you exactly like your own.
+   *
+   * This is the one thing in the whole protocol that is not cosmetic, which is
+   * why deaths are sent as discrete reliable events rather than inferred from
+   * the position stream: a platform that only some players can see would be a
+   * different game for each of them.
+   */
+  addForeignCorpse(x: number, y: number): void {
+    this.corpses.push({
+      x: Math.round(x - CORPSE_W / 2),
+      y: Math.round(y - CORPSE_H),
+      w: CORPSE_W,
+      h: CORPSE_H,
+      born: this.timeMs,
+      where: 'rival',
     });
     while (this.corpses.length > T.corpseCap) this.corpses.shift();
   }

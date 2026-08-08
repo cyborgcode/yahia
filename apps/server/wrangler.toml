@@ -1,0 +1,12 @@
+name = "yahia-rooms"
+main = "worker.mjs"
+compatibility_date = "2026-08-01"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "RaceRoom"
+
+# Durable Objects with a JS class need a migration tag the first time they ship.
+[[migrations]]
+tag = "v1"
+new_classes = ["RaceRoom"]

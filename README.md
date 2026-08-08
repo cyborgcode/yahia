@@ -8,11 +8,14 @@ Twelve phones, one track, ninety seconds. You cannot win by not dying.
 
 ## What this is right now
 
-A **feel prototype**. It is single-player, has no networking, and exists to answer one
-question before anything else gets built: *does slide-jumping feel good on a touchscreen?*
+A playable race. Share a link, pick an outfit, type a name, everyone hits READY, and the
+round ends on the third runner home.
 
-Everything in the multiplayer design rests on that. It is a day of work to find out and a
-month of work to discover too late.
+The client is deployed. **The room server is not** — it needs somewhere to live that isn't
+Vercel, whose WebSockets pin to an instance with no cross-instance broadcast and a ~5
+minute cap. `apps/server/` is a Cloudflare Durable Object ready to `wrangler deploy`; until
+it is deployed and `VITE_ROOM_URL` is set, the game runs as the single-player prototype it
+started as.
 
 ```bash
 npm install
@@ -20,6 +23,8 @@ npm run dev          # http://localhost:5173
 npm run build        # static bundle -> apps/client/dist
 npm run playtest     # automated feel + physics harness (needs a preview server)
 npm run bench        # mobile cost check: wasted pixels + throttled frame rate
+npm run room         # the room server, for local multiplayer
+npm run multitest    # three real browsers through a whole race
 ```
 
 **This is a mobile game.** Phones held **upright** are the target, desktop is incidental.
@@ -262,6 +267,31 @@ one command away.
 column rather than tiles, and the sky is painted only down to the deepest earth line in
 view. Together those are worth ~7fps at a 4× throttle on the portrait viewport — enough
 that the taller window costs nothing against the landscape build it replaced.
+
+## Multiplayer
+
+Share the link. Everyone who opens it lands in the same room, picks an outfit, types a
+name, and hits READY; the race starts when that is true of everybody, and **ends on the
+third runner home** rather than the last, so nobody spends the end of a round watching.
+
+```bash
+npm run room        # the room server, ws://127.0.0.1:8787
+npm run multitest   # three real browsers through the whole flow
+```
+
+**The server referees three things and no more:** who is in the room, when the race
+starts, and who finished. Physics, the track and collision are all local. The track is
+*four bytes* — every client rebuilds it from the seed, so no map data is ever sent.
+
+That is only possible because living players are ghosts. A rival 120ms stale changes
+nothing about your run, so positions are cosmetic and are never reconciled. The one thing
+that must arrive reliably and in order is a **death**, because a body is solid ground to
+everyone else — a platform only some players can see would be a different game for each of
+them. Deaths are counted rather than observed, since watching for `alive` to go false
+between frames misses a death whose respawn timer had already run down.
+
+`apps/server/room.mjs` is the whole rulebook and imports nothing, so the same file runs
+inside a Durable Object and inside the Node dev server. Two hosts, one set of rules.
 
 ## Hosting
 
