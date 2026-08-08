@@ -112,6 +112,14 @@ const standing = await pages[2].evaluate(() => {
 });
 check('the last runner can see two are home', standing === '2/3', standing);
 
+// The count says the race moved on; only a name says who moved it.
+const notice = await pages[2].evaluate(() => window.yahia.notice?.text ?? null);
+check(
+  'an arrival is announced by name',
+  typeof notice === 'string' && notice.includes('BRAVO'),
+  `${notice}`,
+);
+
 await pages[2].evaluate(() => {
   const w = window.yahia;
   w.player.spawn(w.level.goalX + 8, w.level.checkpoints[0].y);

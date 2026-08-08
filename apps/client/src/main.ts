@@ -106,6 +106,9 @@ room.on({
     world.me = { name: boot.name(), kit: boot.kitIndex() };
     showHints = false;
     running = true;
+    announced = 0;
+    reportedFinish = false;
+    reportedDeaths = 0;
   },
   // A rival's body is solid ground to you, exactly like your own.
   onCorpse: (x, y) => world.addForeignCorpse(x, y),
@@ -117,6 +120,8 @@ room.on({
 
 let reportedFinish = false;
 let reportedDeaths = 0;
+/** How much of the finish order has already been announced on screen. */
+let announced = 0;
 
 // Restarting: any tap once you've finished, or R at any time.
 stage.addEventListener('pointerdown', () => {
@@ -155,6 +160,18 @@ startLoop(
       // packet, so a reference taken once at the start goes permanently stale.
       world.ghosts = room.ghosts;
       world.race = { home: room.home, ends: room.ends, myPlace: room.myPlace };
+      // Announce arrivals, but not your own — finishing puts a whole screen in
+      // front of you already, and it does not need a caption.
+      while (announced < room.finishers.length) {
+        const f = room.finishers[announced]!;
+        announced += 1;
+        if (f.id === room.selfId) continue;
+        const left = Math.max(0, room.ends - announced);
+        world.notice = {
+          text: left > 0 ? `${f.name} IS HOME — ${left} LEFT` : `${f.name} IS HOME`,
+          leftMs: 2600,
+        };
+      }
       const p = world.player;
       const now = performance.now();
       room.position(p.x, p.y, p.sliding ? 'slide' : p.grounded ? 'run' : 'air', now);

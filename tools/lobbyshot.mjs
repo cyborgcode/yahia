@@ -59,7 +59,14 @@ if (process.env.PHASE === 'race') {
   for (const p of pages.slice(1, 3)) {
     await p.evaluate(() => {
       const w = window.yahia;
-      w.player.spawn(w.level.goalX + 8, w.level.checkpoints[0].y);
+      // The goal's own ground line, not the start's. Spawning at the finish
+      // using the height the race began at drops the runner into whatever
+      // happens to be there, and a dead runner never banks a time.
+      // A tile is px(16), which is 16 * SCALE units — not 16.
+      const tile = 16 * window.yahiaScale;
+      const top = w.level.surfaceTop[Math.floor(w.level.goalX / tile)];
+      const y = top >= 0 ? top * tile - w.player.h : w.level.checkpoints[0].y;
+      w.player.spawn(w.level.goalX + 8, y);
     });
     await sleep(600);
   }
@@ -74,7 +81,14 @@ if (process.env.PHASE === 'race') {
   for (const p of pages) {
     await p.evaluate(() => {
       const w = window.yahia;
-      w.player.spawn(w.level.goalX + 8, w.level.checkpoints[0].y);
+      // The goal's own ground line, not the start's. Spawning at the finish
+      // using the height the race began at drops the runner into whatever
+      // happens to be there, and a dead runner never banks a time.
+      // A tile is px(16), which is 16 * SCALE units — not 16.
+      const tile = 16 * window.yahiaScale;
+      const top = w.level.surfaceTop[Math.floor(w.level.goalX / tile)];
+      const y = top >= 0 ? top * tile - w.player.h : w.level.checkpoints[0].y;
+      w.player.spawn(w.level.goalX + 8, y);
     });
     await sleep(600);
   }

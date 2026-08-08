@@ -105,6 +105,8 @@ export class RoomClient {
   ends = 3;
   /** Your own finishing place once you have one, else null. */
   myPlace: number | null = null;
+  /** Who is home, in the order they got there. */
+  finishers: Finisher[] = [];
 
   constructor() {
     const base = serverUrl();
@@ -158,7 +160,8 @@ export class RoomClient {
           this.names.set(p.id, p.name);
           if (p.id === this.selfId) this.myPlace = p.place;
         }
-        this.home = ((msg.finishers ?? []) as Finisher[]).length;
+        this.finishers = (msg.finishers ?? []) as Finisher[];
+        this.home = this.finishers.length;
         if (typeof msg.ends === 'number') this.ends = msg.ends;
         this.emit('onRoster', (f) =>
           f(msg.players as RosterPlayer[], this.phase, (msg.finishers ?? []) as Finisher[]),

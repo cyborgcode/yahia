@@ -69,6 +69,13 @@ export class World {
    * shortcut; not knowing means the race can simply end on you mid-stride.
    */
   race: { home: number; ends: number; myPlace: number | null } | null = null;
+
+  /**
+   * A line of text that fades: someone crossed the line, and how much of the
+   * podium that leaves. The count ticking over on the HUD says the race moved
+   * on; only a name says who moved it.
+   */
+  notice: { text: string; leftMs: number } | null = null;
   /**
    * Where this runner's own last body fell. Paired with `deaths` it lets the net
    * layer report deaths by counting them rather than by catching the moment
@@ -100,6 +107,7 @@ export class World {
     this.topSpeed = 0;
     this.respawnMs = 0;
     this.finishedMs = null;
+    this.notice = null;
     this.lastDeathAt = '—';
     this.checkpoint = this.level.checkpoints[0] ?? { x: 32, y: BASE_ROW * TILE };
     this.player.spawn(this.checkpoint.x, this.checkpoint.y);
@@ -112,6 +120,11 @@ export class World {
 
     this.decayCorpses();
     this.tickFuses(ms);
+
+    if (this.notice !== null) {
+      this.notice.leftMs -= ms;
+      if (this.notice.leftMs <= 0) this.notice = null;
+    }
 
     if (this.player.alive) {
       this.player.update(

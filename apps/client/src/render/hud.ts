@@ -4,6 +4,7 @@ import { T } from '../game/tuning';
 import { VIEW_H, VIEW_W } from '../game/view';
 import type { World } from '../game/world';
 import { P } from './palette';
+import { KITS, KIT_COMBOS } from './hero';
 
 /**
  * Drawn into the same backbuffer as the world, so the HUD lives on the same
@@ -28,6 +29,8 @@ export function drawHud(ctx: CanvasRenderingContext2D, world: World, showHints: 
   drawTally(ctx, world);
   drawTimer(ctx, world);
   drawStanding(ctx, world);
+  drawProgress(ctx, world);
+  drawNotice(ctx, world);
 
   if (!world.player.alive) drawDeathBanner(ctx, world);
   if (world.finishedMs !== null) drawFinish(ctx, world);
@@ -114,6 +117,71 @@ function drawStanding(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.fillText('HOME', px(70), px(44));
   ctx.fillStyle = urgent ? P.goal : P.hud;
   ctx.fillText(`${race.home}/${race.ends}`, px(102), px(44));
+}
+
+/**
+ * The whole track as one bar, with everybody's pip on it.
+ *
+ * "Am I nearly there" was unanswerable — the camera shows ten tiles of a track
+ * two hundred long, so a runner had no idea whether to spend speed or save it.
+ * The same bar answers "where is everyone", which is otherwise only knowable
+ * for rivals close enough to be on screen: a pip well ahead of yours is a
+ * player you will probably never see before the race ends.
+ *
+ * Pips carry each player's shirt colour, the same colour as their nameplate, so
+ * the bar and the runner in front of you are naming the same person.
+ */
+function drawProgress(ctx: CanvasRenderingContext2D, world: World): void {
+  if (world.race === null) return;
+
+  const x0 = world.level.checkpoints[0]?.x ?? 0;
+  const span = Math.max(1, world.level.goalX - x0);
+  const barX = px(4);
+  const barY = px(58);
+  const barW = VIEW_W - px(8);
+  const barH = px(6);
+  const pipW = px(3);
+
+  ctx.fillStyle = P.hudBack;
+  ctx.fillRect(barX, barY, barW, barH);
+  // The finish, at the end of the bar where it belongs.
+  ctx.fillStyle = P.goal;
+  ctx.fillRect(barX + barW - px(2), barY, px(2), barH);
+
+  const pipAt = (wx: number, kit: number, own: boolean): void => {
+    const t = clamp((wx - x0) / span, 0, 1);
+    const x = Math.round(barX + t * (barW - pipW));
+    const combo = KIT_COMBOS[kit] ?? KIT_COMBOS[0]!;
+    if (own) {
+      // Your own pip is the one you have to find at a glance while running,
+      // so it is taller than the bar and outlined rather than merely a
+      // different colour — colour alone loses against eleven other colours.
+      ctx.fillStyle = P.hud;
+      ctx.fillRect(x - px(1), barY - px(2), pipW + px(2), barH + px(4));
+    }
+    ctx.fillStyle = KITS[combo.shirt]!.color;
+    ctx.fillRect(x, own ? barY - px(1) : barY, pipW, own ? barH + px(2) : barH);
+  };
+
+  for (const g of world.ghosts) pipAt(g.x, g.kit, false);
+  if (world.me !== null) pipAt(world.player.x, world.me.kit, true);
+}
+
+/** A name, briefly, when somebody crosses the line ahead of you. */
+function drawNotice(ctx: CanvasRenderingContext2D, world: World): void {
+  const notice = world.notice;
+  if (notice === null) return;
+
+  // Fades out over its last half second rather than vanishing, so a glance
+  // that catches the tail of it still reads as a message going away.
+  ctx.globalAlpha = clamp(notice.leftMs / 500, 0, 1);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(10,7,14,0.72)';
+  ctx.fillRect(0, px(70), VIEW_W, px(16));
+  ctx.fillStyle = P.goal;
+  ctx.fillText(notice.text, VIEW_W / 2, px(74));
+  ctx.textAlign = 'left';
+  ctx.globalAlpha = 1;
 }
 
 /**
