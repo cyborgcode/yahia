@@ -1,4 +1,7 @@
-name = "yahia-rooms"
+# Matches the repository name, because Workers Builds derives the Worker name
+# from the repo and overrides this file when they disagree — then opens a pull
+# request offering to change it for you.
+name = "yahia"
 main = "worker.mjs"
 compatibility_date = "2026-08-01"
 

@@ -11,11 +11,11 @@ Twelve phones, one track, ninety seconds. You cannot win by not dying.
 A playable race. Share a link, pick an outfit, type a name, everyone hits READY, and the
 round ends on the third runner home.
 
-The client is deployed. **The room server is not** — it needs somewhere to live that isn't
-Vercel, whose WebSockets pin to an instance with no cross-instance broadcast and a ~5
-minute cap. `apps/server/` is a Cloudflare Durable Object ready to `wrangler deploy`; until
-it is deployed and `VITE_ROOM_URL` is set, the game runs as the single-player prototype it
-started as.
+Both halves are deployed: the client on Vercel, and the rooms as a Cloudflare Durable
+Object, which is where they have to live — Vercel's WebSockets pin to an instance with no
+cross-instance broadcast and a ~5 minute cap. Until `VITE_ROOM_URL` points the client at
+the room server, the game runs as the single-player prototype it started as. See
+[Turning multiplayer on](#turning-multiplayer-on).
 
 ```bash
 npm install
@@ -309,14 +309,14 @@ Everything is checked in; setup is three commands and one environment variable.
 
 ```bash
 npx wrangler login                 # opens a browser, authorises this machine
-npm run deploy:rooms               # prints https://yahia-rooms.<subdomain>.workers.dev
+npm run deploy:rooms               # prints https://yahia.<subdomain>.workers.dev
 ```
 
 A free Cloudflare account is enough. Take the hostname it prints, swap `https` for `wss`,
 and set it as `VITE_ROOM_URL` in the Vercel project's environment variables, then redeploy:
 
 ```
-VITE_ROOM_URL = wss://yahia-rooms.<subdomain>.workers.dev
+VITE_ROOM_URL = wss://yahia.<subdomain>.workers.dev
 ```
 
 It is a **build-time** value — the client reads it through `import.meta.env`, so setting it
