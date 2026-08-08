@@ -305,20 +305,47 @@ never see each other. Rooms belong on **Cloudflare Durable Objects**, where
 
 ### Turning multiplayer on
 
-Two commands and one environment variable, against your own Cloudflare account:
+Everything is checked in; setup is three commands and one environment variable.
 
 ```bash
-npx wrangler deploy --config apps/server/wrangler.toml   # prints wss://yahia-rooms.<you>.workers.dev
+npx wrangler login                 # opens a browser, authorises this machine
+npm run deploy:rooms               # prints https://yahia-rooms.<subdomain>.workers.dev
 ```
 
-Then set `VITE_ROOM_URL` to that origin in the Vercel project's environment variables and
-redeploy. It is a **build-time** value — the client reads it through `import.meta.env`, so
-setting it without a rebuild changes nothing. Until it is set, `RoomClient.enabled` is
-false, the socket is never opened, and the game is the single-player prototype.
+A free Cloudflare account is enough. Take the hostname it prints, swap `https` for `wss`,
+and set it as `VITE_ROOM_URL` in the Vercel project's environment variables, then redeploy:
 
-The migration is declared `new_sqlite_classes`, which is the only Durable Object backing
-the Workers Free plan will deploy. The object stores nothing but an alarm, so that costs
-nothing.
+```
+VITE_ROOM_URL = wss://yahia-rooms.<subdomain>.workers.dev
+```
+
+It is a **build-time** value — the client reads it through `import.meta.env`, so setting it
+without a rebuild changes nothing. Until it is set, `RoomClient.enabled` is false, the
+socket is never opened, and the game is the single-player prototype. To try a deployed room
+against a local client without rebuilding, `?room=wss://…` in the URL overrides it.
+
+```bash
+npm run room:cf     # the real Durable Object runtime, locally, no account needed
+npm run roomtest    # the room rules, including waking from hibernation
+npm run multitest   # three real browsers through the whole flow
+```
+
+**Two things about this host shape the code**, and neither is visible on the Node dev
+server, which is why `npm run roomtest` exists:
+
+- A Durable Object is **evicted from memory** after about ten seconds of quiet and comes
+  back with its sockets alive and its heap empty. A lobby where nobody has typed for a
+  moment is exactly that. Per-player state therefore rides on the socket via
+  `serializeAttachment`, room state goes to storage, and the object rebuilds itself in
+  `blockConcurrencyWhile` before it serves anything. Without it a quiet lobby wakes with an
+  empty roster and drops everyone's next message as coming from a stranger — connected,
+  and silent.
+- **An alarm every 50ms is a billable invocation every 50ms**, and it keeps the object
+  resident. Ghosts need that rate; a lobby does not. The alarm is armed only while a race
+  is running — otherwise an empty menu screen would burn ~1.7M invocations a day.
+
+The migration is declared `new_sqlite_classes`, the only Durable Object backing the free
+plan will deploy.
 
 If you would rather not use Cloudflare: `apps/server/room.mjs` imports nothing and is
 already driven by plain `ws` in `tools/dev-room.mjs`, so any always-on Node host (Fly,

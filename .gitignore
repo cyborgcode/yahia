@@ -6,3 +6,6 @@ dist/
 *.log
 shot-*.png
 tools/.hero-debug.png
+
+# wrangler dev local state
+.wrangler/

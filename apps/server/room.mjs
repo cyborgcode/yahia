@@ -207,6 +207,47 @@ export class Room {
     }
   }
 
+  /**
+   * The room-level state worth surviving the host going away underneath it.
+   *
+   * A Durable Object is evicted from memory whenever it goes quiet, and comes
+   * back with its sockets intact but its heap empty — so on that host this is
+   * not an optional durability feature, it is the difference between a lobby
+   * that works and one that silently stops answering. Positions are deliberately
+   * absent: they are cosmetic and a frame stale already.
+   */
+  snapshot() {
+    return {
+      phase: this.phase,
+      seed: this.seed,
+      startedAt: this.startedAt,
+      finishOrder: this.finishOrder,
+    };
+  }
+
+  /** @param {object|undefined} saved @param {object[]} players */
+  restore(saved, players) {
+    if (saved !== undefined && saved !== null) {
+      this.phase = saved.phase ?? LOBBY;
+      this.seed = saved.seed ?? 0;
+      this.startedAt = saved.startedAt ?? 0;
+      this.finishOrder = saved.finishOrder ?? [];
+    }
+    for (const p of players) {
+      this.players.set(p.id, {
+        name: 'RUNNER',
+        kit: 0,
+        ready: false,
+        x: 0,
+        y: 0,
+        state: 'run',
+        finished: null,
+        place: null,
+        ...p,
+      });
+    }
+  }
+
   /** Ghost positions, on a timer. One message for everyone, not one each. */
   tick() {
     if (this.phase !== RACING || this.players.size === 0) return;

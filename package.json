@@ -20,10 +20,14 @@
     "tiles": "python3 tools/slice_tiles.py",
     "hero": "python3 tools/slice_hero.py",
     "room": "node tools/dev-room.mjs",
-    "multitest": "node tools/multitest.mjs"
+    "room:cf": "wrangler dev --config apps/server/wrangler.toml --port 8787",
+    "deploy:rooms": "wrangler deploy --config apps/server/wrangler.toml",
+    "multitest": "node tools/multitest.mjs",
+    "roomtest": "node tools/roomtest.mjs"
   },
   "devDependencies": {
     "playwright": "^1.56.1",
+    "wrangler": "^4.120.0",
     "ws": "^8.21.3"
   }
 }
