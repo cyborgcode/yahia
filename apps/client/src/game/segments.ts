@@ -70,6 +70,31 @@ export const SEGMENTS: readonly Segment[] = [
     ],
   },
   {
+    /**
+     * Where the slide-jump is taught.
+     *
+     * Measured across 300 generated tracks, `slideJump` was introduced at tier 3
+     * or worse every single time, because nothing below tier 3 asked for it —
+     * the hardest technique in the game was only ever met inside a hard segment.
+     * A mechanic gets a safe first meeting before it gets a test.
+     *
+     * The ducker's bar, then two tiles of gap. Two rather than the four in
+     * `duck-and-leap`, so cancelling a fraction late still clears it: the lesson
+     * here is that the cancel exists, not that it must be timed.
+     */
+    name: 'low-bar',
+    tier: 2,
+    requires: ['slide', 'slideJump'],
+    entry: 3,
+    exit: 3,
+    rows: [
+      '...####.........',
+      '...####.........',
+      '................',
+      '##########..####',
+    ],
+  },
+  {
     // Six tiles of runway, not three. A short descent gives the slide almost no
     // time to accelerate, which makes the whole momentum model unrewarding —
     // measured at a ~9% gain before this was lengthened.

@@ -47,29 +47,18 @@ const heroPixels = () =>
     return { opaque, sum };
   });
 
-const rowCount = await page.locator('.kit-row').count();
-const kitCount = await page.locator('.kit-row').nth(0).locator('.kit').count();
-check(
-  'shirt and shorts are picked separately',
-  rowCount === 2 && kitCount >= 12,
-  `${rowCount} garments x ${kitCount} colours = ${kitCount ** 2} kits`,
-);
+const kitCount = await page.locator('.kit').count();
+check('an outfit per player is offered', kitCount >= 12, `${kitCount} kits`);
 
 const beforeKit = await heroPixels();
 check('hero is drawn on the title screen', beforeKit.opaque > 5000, `${beforeKit.opaque} opaque px`);
 
-// Cobalt shirt, lime shorts — deliberately different, and deliberately neither
-// of the source art's own colours. The art is cream over pink, so a red kit
-// would pass a "did it get warmer" test without doing anything; and giving the
-// two garments the same hue could not tell a working split from one mask
-// painting both. Nothing on this character is blue or green.
-//
-// Lime rather than jade: jade is blue-green enough that b > r + 40 holds for it,
-// so its pixels answered the shirt test and the shorts looked unpainted.
-await page.locator('.kit-row').nth(0).locator('.kit').nth(7).click();
-await sleep(400);
-await page.locator('.kit-row').nth(1).locator('.kit').nth(3).click();
-await sleep(500);
+// Combo 8 is lime over teal — deliberately neither of the source art's own
+// colours, which are cream over pink, so a warm kit would pass a "did anything
+// change" test without doing anything. And the two garments differ, so one mask
+// painting everything cannot be mistaken for two masks working.
+await page.locator('.kit').nth(8).click();
+await sleep(700);
 const afterKit = await heroPixels();
 check(
   'picking a kit repaints the hero',
@@ -96,15 +85,16 @@ const runnerTinted = await page.evaluate(() => {
   let shorts = 0;
   for (let i = 0; i < d.length; i += 4) {
     if (d[i + 3] < 128) continue;
-    if (d[i + 2] > d[i] + 40) shirt += 1;
-    else if (d[i + 1] > d[i] + 30 && d[i + 1] > d[i + 2] + 30) shorts += 1;
+    // Lime is yellow-green, teal is blue-green: split them on red, not on green.
+    if (d[i + 1] > d[i + 2] + 30 && d[i] > d[i + 2] + 20) shirt += 1;
+    else if (d[i + 2] > d[i] + 30 && d[i + 1] > d[i] + 30) shorts += 1;
   }
   return { shirt, shorts };
 });
 check(
   'both garments are worn in the race, separately',
-  runnerTinted.shirt > 80 && runnerTinted.shorts > 60,
-  `${runnerTinted.shirt}px cobalt shirt, ${runnerTinted.shorts}px lime shorts`,
+  runnerTinted.shirt > 80 && runnerTinted.shorts > 40,
+  `${runnerTinted.shirt}px lime shirt, ${runnerTinted.shorts}px teal shorts`,
 );
 
 // Every threshold below is expressed in the authoring base and scaled, so
@@ -148,6 +138,51 @@ const start = await state();
 check('level generated', start.levelW > px(2000) && start.segments > 20,
   `${start.segments} segments, ${start.levelW}px, ${start.checkpoints} checkpoints`);
 check('goal placed', start.goalX > 0, `goalX=${start.goalX}`);
+
+// --- pacing rules, sampled across many tracks -------------------------------
+// Standard platformer practice, and both were being broken every single time
+// before they were written down: a mechanic gets a safe first meeting before it
+// gets a test, and challenge is separated by rest. Checked over 200 seeds
+// rather than one, because a generator is a distribution, not a track.
+const pacing = await page.evaluate((n) => {
+  let taughtLate = 0;
+  let longestRun = 0;
+  let shortest = Infinity;
+  for (let i = 1; i <= n; i++) {
+    window.yahia.reset((i * 2654435761) >>> 0);
+    const placed = window.yahia.level.placed;
+    const seen = new Set();
+    let run = 0;
+    for (const p of placed) {
+      for (const verb of p.requires) {
+        if (!seen.has(verb)) {
+          if (p.tier > 2) taughtLate += 1;
+          seen.add(verb);
+        }
+      }
+      run = p.tier >= 3 ? run + 1 : 0;
+      if (run > longestRun) longestRun = run;
+    }
+    shortest = Math.min(shortest, placed.length);
+  }
+  return { taughtLate, longestRun, shortest };
+}, 200);
+
+check(
+  'techniques are taught before they are tested',
+  pacing.taughtLate === 0,
+  `${pacing.taughtLate} first-demands above the teaching tier across 200 tracks`,
+);
+check(
+  'challenge is broken up by rest',
+  pacing.longestRun <= 2,
+  `longest run of hard segments: ${pacing.longestRun}`,
+);
+check('every track is still built', pacing.shortest > 20, `shortest track ${pacing.shortest} segments`);
+
+// Put the harness back on the seed the rest of the suite measures against.
+await page.evaluate(() => window.yahia.reset(window.yahia.seed));
+await sleep(200);
 
 // --- auto-run --------------------------------------------------------------
 await sleep(1000);

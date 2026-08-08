@@ -109,6 +109,15 @@ Two rules the first implementation needed, learned by measuring generated tracks
 - **Force an elevation change every few segments.** Slopes are the only source of banked
   speed, and tier sampling left them out of entire tracks — which silently disabled the
   momentum model.
+- **Teach before test.** A technique may only be demanded above tier 2 once it has already
+  turned up somewhere gentler. Measured across 300 seeds, the slide-jump was introduced
+  cold *every single time*, because nothing below tier 3 used it — so the rule's real work
+  was exposing a missing piece rather than reordering existing ones.
+- **Challenge is separated by rest.** At most two hard segments before a breather. Tracks
+  previously ran ten deep.
+
+These are ordinary platformer pacing rules; the point is that a generator will break every
+one of them silently unless the rule is written down and measured.
 
 ### The elegant thing random maps do to the corpse mechanic
 
@@ -143,9 +152,9 @@ vanished the moment one shipped a light sky. Every readout is boxed now.
 This also solves the 12-colour palette problem for free: ghosts convey no identity, so
 they're all one neutral tone. Only corpses need player colour.
 
-**Identity is a kit, picked before the round.** A shirt colour and a shorts colour, chosen
-independently from a palette of twelve — 144 outfits, so nobody has to be assigned a
-number, and what you wear reads as a choice rather than a slot.
+**Identity is a kit, picked before the round.** Twelve outfits, each a shirt colour over a
+shorts colour, chosen whole rather than assembled — no two share a dominant colour, because
+the job is telling twelve people apart across a room.
 
 It is chosen on the title screen because that is the one moment nobody is racing — and
 because a player who has picked a colour has already been asked, gently, to care which

@@ -22,19 +22,41 @@ export interface Kit {
 }
 
 /**
- * A kit is two choices, not one: a shirt colour and a shorts colour, picked
- * independently from the same palette.
+ * A kit is a shirt colour and a shorts colour — but you pick the pair, not the
+ * two halves.
  *
- * One hue for both was the first version and it wasted the character. Twelve
- * players need to be told apart at a glance on a small screen, and twelve
- * single colours run out exactly at twelve — while two garments from a palette
- * of twelve give a hundred and forty-four combinations that read as an outfit
- * somebody chose rather than a number they were assigned.
+ * One hue head to toe was the first version and wasted the character. Two
+ * independent pickers was the second, and 144 combinations sounds generous
+ * until you notice most of them are ugly and choosing takes two decisions
+ * before a game that takes ninety seconds. Twelve chosen outfits is one tap,
+ * and every one of them looks deliberate.
  */
 export interface KitChoice {
   readonly shirt: number;
   readonly shorts: number;
 }
+
+/**
+ * The twelve outfits, as (shirt, shorts) into the palette.
+ *
+ * Picked so no two share a dominant colour — the point is telling twelve people
+ * apart across a room, so "the green one" and "the orange one" have to be
+ * unambiguous. The first is the supplied art's own cream over pink.
+ */
+export const KIT_COMBOS: readonly KitChoice[] = [
+  { shirt: 11, shorts: 10 },
+  { shirt: 11, shorts: 7 },
+  { shirt: 2, shorts: 7 },
+  { shirt: 0, shorts: 11 },
+  { shirt: 6, shorts: 11 },
+  { shirt: 4, shorts: 2 },
+  { shirt: 7, shorts: 1 },
+  { shirt: 9, shorts: 8 },
+  { shirt: 3, shorts: 5 },
+  { shirt: 1, shorts: 5 },
+  { shirt: 8, shorts: 2 },
+  { shirt: 5, shorts: 0 },
+];
 
 /**
  * Twelve, chosen for separation at a glance rather than for even spacing round

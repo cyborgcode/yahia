@@ -109,11 +109,15 @@ under him are how a room full of people tell each other apart.
 npm run hero         # re-slice the turnaround and rebuild both garment masks
 ```
 
-**A kit is two choices, not one.** Shirt and shorts are picked independently from the same
-palette of twelve, so there are 144 outfits rather than 12 — a room of twelve players can
-be told apart without anyone being assigned a number, and the pair reads as something
-somebody chose. Sheets are cached per pair and baked on demand: 144 combinations at a
-quarter of a million pixel writes each is not something to do up front.
+**A kit is an outfit, picked whole.** Twelve combinations of shirt and shorts colour, one
+tap each, and the swatch is split — shirt above the diagonal, shorts below — so the chip is
+a picture of the thing it selects rather than a label for it.
+
+Two independent pickers were tried and dropped. 144 combinations sounds generous until you
+notice most of them are ugly and that choosing costs two decisions before a game that lasts
+ninety seconds. Twelve chosen outfits are one decision and all of them look deliberate.
+They are picked so no two share a dominant colour, because the job is telling twelve people
+apart across a room: "the green one" has to be unambiguous.
 
 **Recolouring is a luminance remap, not a hue rotation.** The shirt in the source art
 is cream — saturation 0.14 — and rotating the hue of something that desaturated
@@ -204,6 +208,23 @@ decoration: the hazard colour is one saturated red used nowhere else, and backdr
 stay desaturated and far from the terrain in value so background can never be mistaken for
 floor.
 
+**Levels follow the standard platformer pacing rules, and are checked against them.** Both
+were being broken in every single track before they were written down, which is why they
+are measured over 200 seeds rather than eyeballed on one:
+
+- **Teach before test.** A technique gets a safe first meeting before it is demanded in
+  anger. `slideJump` used to be introduced at tier 3 or worse *100% of the time*, because
+  no segment below tier 3 used it at all — turning the rule on is what exposed the gap in
+  the library and forced a gentle teacher (`low-bar`) to be authored rather than the rule
+  weakened to fit.
+- **Challenge is separated by rest.** Tracks ran up to ten hard segments back to back;
+  only tier 4+ forced a breather, so long tier-3 chains went unbroken. Two now, then rest.
+
+One rule from the reading was checked and *not* adopted: giving each segment clear ground
+before its first hazard. It sounds right and does nothing here, because look-ahead is
+uniform — the camera shows a fixed distance, so a hazard is visible the same ~0.43s ahead
+wherever it happens to sit inside a segment.
+
 **Levels are stitched, not noise-generated.** A hand-authored library of challenge
 segments in [`segments.ts`](apps/client/src/game/segments.ts), each declaring a
 connection contract (ground row at its left and right edge). The generator only decides
@@ -254,14 +275,15 @@ never see each other. Rooms belong on **Cloudflare Durable Objects**, where
 
 ## Status
 
-Verified by `npm run playtest` (22/22 checks, real browser, real build):
+Verified by `npm run playtest` (25/25 checks, real browser, real build):
 
 - Tracks generate, vary by seed, and are byte-identical for the same seed
 - Auto-run, jump, slide, stand-up, respawn, checkpoints
 - **Sliding a descent peaks at 900 vs 583 running it** — the momentum model pays
 - Death leaves a body; bodies are solid platforms; martyr credit is recorded
 - Creatures are placed in the track and are lethal to touch
-- Shirt and shorts are picked separately, repaint the hero, and are worn into the race
+- Twelve outfits are offered, repaint the hero, and both garments are worn into the race
+- Every technique is taught before it is tested, and challenge is broken by rest (200 seeds)
 
 ## Not built yet
 

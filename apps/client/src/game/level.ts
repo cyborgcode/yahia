@@ -32,6 +32,28 @@ const RECENT_MEMORY = 4;
 /** Force an elevation change after this many flat segments in a row. */
 const FLAT_RUN_LIMIT = 4;
 
+/**
+ * A mechanic is taught before it is tested: any segment above this tier may only
+ * appear once everything it asks for has already turned up in an easier one.
+ *
+ * Standard platformer practice — introduce safely, then test, then complicate —
+ * and it was being broken in every single track. Across 300 seeds, `slideJump`
+ * was first demanded at tier 3 or worse 100% of the time, because no segment
+ * below tier 3 used it at all. Enforcing this is also what forced the library
+ * gap to be filled rather than papered over: with the rule on and no gentle
+ * teacher, a mechanic simply never appears.
+ */
+const TEACHING_TIER = 2;
+
+/**
+ * Consecutive hard segments before a breather is forced.
+ *
+ * Rhythm is challenge separated by rest, and there was none: tracks ran up to
+ * ten tier-3+ segments back to back. Only tier 4+ used to force a breather,
+ * which left long tier-3 chains unbroken.
+ */
+const CHALLENGE_RUN_LIMIT = 2;
+
 export interface Checkpoint {
   x: number;
   y: number;
@@ -51,7 +73,12 @@ export class Level {
   readonly data: Uint8Array;
   readonly checkpoints: Checkpoint[] = [];
   readonly enemies: EnemySpawn[] = [];
-  readonly placed: { name: string; x: number }[] = [];
+  /**
+   * What was placed where, with the metadata the pacing rules are expressed in.
+   * Tier and requirements ride along so the harness can assert the rhythm and
+   * teach-before-test properties without a second copy of the segment library.
+   */
+  readonly placed: { name: string; x: number; tier: number; requires: readonly string[] }[] = [];
   /**
    * First row under each column's tiled earth, or -1 where the column is open
    * sky. The renderer floods from here to the bottom of the view in one rect
@@ -120,6 +147,10 @@ export function buildLevel(seed: number, segmentCount = 24): Level {
   let row = BASE_ROW;
   const recent: string[] = [];
   let sinceElevation = 0;
+  /** Consecutive tier-3-or-worse pieces since the last breather. */
+  let sinceRest = 0;
+  /** Techniques the track has already asked for gently. */
+  const taught = new Set<string>();
 
   /** Only pieces that keep the track inside the grid are eligible. */
   const fits = (s: Segment) => {
@@ -145,31 +176,42 @@ export function buildLevel(seed: number, segmentCount = 24): Level {
     recent.push(s.name);
     if (recent.length > RECENT_MEMORY) recent.shift();
     sinceElevation = s.entry === s.exit ? sinceElevation + 1 : 0;
+    sinceRest = s.tier >= 3 ? sinceRest + 1 : 0;
+    for (const verb of s.requires) taught.add(verb);
   };
 
   for (let i = 0; i < segmentCount; i++) {
+    /**
+     * Teach before test: a piece above the teaching tier may only ask for
+     * techniques the player has already met somewhere gentler.
+     */
+    const known = (s: Segment) =>
+      s.tier <= TEACHING_TIER || s.requires.every((verb) => taught.has(verb));
+    const eligible = (s: Segment) => fits(s) && known(s);
+
     // Slopes are the only source of banked speed, and tier sampling alone left
     // them out of whole tracks — so force one when the ground has been flat
     // for too long.
-    const slopes = SEGMENTS.filter((s) => s.entry !== s.exit && fits(s));
+    const slopes = SEGMENTS.filter((s) => s.entry !== s.exit && eligible(s));
     let pool: Segment[];
-    if (sinceElevation >= FLAT_RUN_LIMIT && slopes.length > 0) {
+    if (sinceRest >= CHALLENGE_RUN_LIMIT) {
+      // Rest beat. Nothing above the teaching tier, so the run of hard pieces
+      // is genuinely broken rather than continued a rung lower.
+      pool = fresh(SEGMENTS.filter((s) => s.tier <= TEACHING_TIER && eligible(s)));
+    } else if (sinceElevation >= FLAT_RUN_LIMIT && slopes.length > 0) {
       pool = fresh(slopes);
     } else {
       const tier = targetTier(i / segmentCount, rng);
-      let byTier = SEGMENTS.filter((s) => s.tier === tier && fits(s));
-      if (byTier.length === 0) byTier = SEGMENTS.filter(fits);
+      let byTier = SEGMENTS.filter((s) => s.tier === tier && eligible(s));
+      if (byTier.length === 0) byTier = SEGMENTS.filter(eligible);
       pool = fresh(byTier);
     }
+    // Fall back through the constraints rather than off the end of them: a
+    // track that cannot be walked is worse than one that repeats itself.
+    if (pool.length === 0) pool = SEGMENTS.filter(eligible);
+    if (pool.length === 0) pool = SEGMENTS.filter(fits);
     if (pool.length === 0) pool = [SEGMENTS[0]!];
-    const pick = rng.pick(pool);
-    place(pick);
-
-    // A breather after anything nasty, so the track has rhythm.
-    if (pick.tier >= 4) {
-      const breathers = fresh(SEGMENTS.filter((s) => s.tier === 1 && fits(s)));
-      if (breathers.length > 0) place(rng.pick(breathers));
-    }
+    place(rng.pick(pool));
   }
   chosen.push(FINISH_SEGMENT);
 
@@ -181,7 +223,7 @@ export function buildLevel(seed: number, segmentCount = 24): Level {
   row = BASE_ROW;
   chosen.forEach((seg, index) => {
     const offset = row - seg.entry;
-    level.placed.push({ name: seg.name, x: cursor * TILE });
+    level.placed.push({ name: seg.name, x: cursor * TILE, tier: seg.tier, requires: seg.requires });
 
     for (let ry = 0; ry < seg.rows.length; ry++) {
       const line = seg.rows[ry]!;

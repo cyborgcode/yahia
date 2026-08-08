@@ -3,6 +3,7 @@ import {
   HERO_FRAME_H,
   HERO_FRAME_W,
   KITS,
+  KIT_COMBOS,
   type KitChoice,
   drawHero,
   heroSheet,
@@ -31,22 +32,20 @@ export interface Boot {
   kit(): KitChoice;
 }
 
-/** The supplied art's own colours: a pale shirt over pink shorts. */
-const DEFAULT_KIT: KitChoice = { shirt: 11, shorts: 10 };
+/** Index into KIT_COMBOS. Zero is the supplied art's own cream over pink. */
+const DEFAULT_COMBO = 0;
 
-function savedKit(): KitChoice {
-  // Guard the null explicitly: Number(null) is 0, so a player who had never
-  // picked anything was silently assigned the first kit instead of the default.
+function savedCombo(): number {
+  // Guard the null explicitly: Number(null) is 0, which happens to be the
+  // default here but was silently picking the first kit when it wasn't.
   const stored = localStorage.getItem(STORE_KEY);
-  if (stored === null) return DEFAULT_KIT;
-  const parts = stored.split(':').map(Number);
-  const ok = (n: number | undefined): n is number =>
-    n !== undefined && Number.isInteger(n) && n >= 0 && n < KITS.length;
-  return ok(parts[0]) && ok(parts[1]) ? { shirt: parts[0], shorts: parts[1] } : DEFAULT_KIT;
+  if (stored === null) return DEFAULT_COMBO;
+  const n = Number(stored);
+  return Number.isInteger(n) && n >= 0 && n < KIT_COMBOS.length ? n : DEFAULT_COMBO;
 }
 
 export function createBoot(): Boot {
-  let kit = savedKit();
+  let combo = savedCombo();
 
   const root = document.createElement('div');
   root.id = 'boot';
@@ -88,7 +87,7 @@ export function createBoot(): Boot {
       if (spinLeft === 0) frame = 0;
     }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawHero(ctx, kit, frame, 0, 0, 1);
+    drawHero(ctx, KIT_COMBOS[combo]!, frame, 0, 0, 1);
     requestAnimationFrame(paint);
   }
   requestAnimationFrame(paint);
@@ -99,47 +98,34 @@ export function createBoot(): Boot {
   }
 
   // --- kit picker ----------------------------------------------------------
-  // One row per garment. A single palette with a "which am I colouring?" toggle
-  // would be fewer controls and one more thing to understand; two labelled rows
-  // are the whole model on screen at once.
-  function row(part: 'shirt' | 'shorts', label: string): void {
-    const strip = document.createElement('div');
-    strip.className = 'kit-row';
-    const name = document.createElement('span');
-    name.className = 'kit-label';
-    name.textContent = label;
-
-    const cells = document.createElement('div');
-    cells.className = 'kit-cells';
-
-    const buttons: HTMLButtonElement[] = KITS.map((k, i) => {
-      const b = document.createElement('button');
-      b.className = 'kit';
-      b.style.background = k.color;
-      b.title = `${label} — ${k.name}`;
-      b.setAttribute('aria-label', `${label} ${k.name}`);
-      b.addEventListener('click', () => {
-        if (kit[part] === i) return;
-        kit = { ...kit, [part]: i };
-        localStorage.setItem(STORE_KEY, `${kit.shirt}:${kit.shorts}`);
-        // Bake before the turn starts so the first frame is already the new kit.
-        heroSheet(kit);
-        buttons.forEach((other, j) => other.classList.toggle('on', j === kit[part]));
-        spin();
-      });
-      cells.append(b);
-      return b;
+  // One tap, one outfit. Each swatch is split — shirt colour above the diagonal,
+  // shorts below — so the chip is a small picture of the thing it selects rather
+  // than a label for it.
+  const buttons: HTMLButtonElement[] = KIT_COMBOS.map((c, i) => {
+    const shirt = KITS[c.shirt]!;
+    const shorts = KITS[c.shorts]!;
+    const b = document.createElement('button');
+    b.className = 'kit';
+    b.style.background =
+      `linear-gradient(155deg, ${shirt.color} 0 48%, ${shorts.color} 48% 100%)`;
+    b.title = `${shirt.name} over ${shorts.name}`;
+    b.setAttribute('aria-label', `${shirt.name} shirt, ${shorts.name} shorts`);
+    b.addEventListener('click', () => {
+      if (i === combo) return;
+      combo = i;
+      localStorage.setItem(STORE_KEY, String(i));
+      // Bake before the turn starts so the first frame is already the new kit.
+      heroSheet(KIT_COMBOS[combo]!);
+      buttons.forEach((other, j) => other.classList.toggle('on', j === combo));
+      spin();
     });
-    buttons[kit[part]]?.classList.add('on');
-
-    strip.append(name, cells);
-    swatches.append(strip);
-  }
-  row('shirt', 'SHIRT');
-  row('shorts', 'SHORTS');
+    swatches.append(b);
+    return b;
+  });
+  buttons[combo]?.classList.add('on');
 
   return {
-    kit: () => kit,
+    kit: () => KIT_COMBOS[combo]!,
     ready(onPlay) {
       status.remove();
       const play = document.createElement('button');
@@ -151,7 +137,7 @@ export function createBoot(): Boot {
         // race is not drawn underneath a dissolving menu.
         setTimeout(() => {
           root.remove();
-          onPlay(kit);
+          onPlay(KIT_COMBOS[combo]!);
         }, 220);
       });
       foot.append(play);
