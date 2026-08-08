@@ -45,7 +45,20 @@ export class World {
    * so a position 120ms stale changes nothing about your run and is never
    * reconciled. Written by the net layer, read by the renderer.
    */
-  ghosts: readonly { id: string; x: number; y: number; state: string; kit: number }[] = [];
+  ghosts: readonly {
+    id: string;
+    x: number;
+    y: number;
+    state: string;
+    kit: number;
+    name: string;
+  }[] = [];
+  /**
+   * This runner's own name and outfit, or null when there is nobody to be it in
+   * front of. Solo, a tag over your own head labels the only person on the
+   * screen for an audience of the person it labels.
+   */
+  me: { name: string; kit: number } | null = null;
   /**
    * Where this runner's own last body fell. Paired with `deaths` it lets the net
    * layer report deaths by counting them rather than by catching the moment

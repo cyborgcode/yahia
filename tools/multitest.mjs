@@ -71,6 +71,16 @@ await sleep(1200);
 const ghosts = await pages[0].evaluate(() => window.yahia.ghosts.length);
 check('rivals appear as ghosts', ghosts === 2, `${ghosts} ghosts (2 rivals)`);
 
+// Names ride on the roster, not the position stream, so this is a join that
+// could silently produce blank tags without anything else noticing.
+const named = await pages[0].evaluate(() =>
+  window.yahia.ghosts.map((g) => g.name).sort().join(','),
+);
+check('every rival is labelled', named === 'BRAVO,CHARLIE', named || '(blank)');
+
+const mine = await pages[0].evaluate(() => window.yahia.me?.name ?? null);
+check('your own runner is labelled too', mine === 'ALFA', `${mine}`);
+
 // --- a body is solid to everybody -------------------------------------------
 const before = await pages[1].evaluate(() => window.yahia.corpses.length);
 await pages[0].evaluate(() => {

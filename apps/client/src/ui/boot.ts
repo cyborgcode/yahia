@@ -32,6 +32,8 @@ export interface Boot {
   /** Swap the status line for a live PLAY (solo) or READY (room) button. */
   ready(onPlay: (kit: KitChoice) => void): void;
   kit(): KitChoice;
+  /** The same outfit as an index, which is what the wire and the tags use. */
+  kitIndex(): number;
   name(): string;
   /** Bring the menu back between races, for the leaderboard and the rematch. */
   reopen(finishers: Finisher[]): void;
@@ -227,6 +229,7 @@ export function createBoot(room: RoomClient | null): Boot {
 
   return {
     kit: () => KIT_COMBOS[combo]!,
+    kitIndex: () => combo,
     name: myName,
 
     ready(onPlay) {

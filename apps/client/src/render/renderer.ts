@@ -6,6 +6,7 @@ import { VIEW_H, VIEW_W } from '../game/view';
 import { BASE_ROW, type Level } from '../game/level';
 import type { World } from '../game/world';
 import { P } from './palette';
+import { KITS, KIT_COMBOS } from './hero';
 import { RUN_CYCLE, SpriteBank, type SpriteName } from './sprites';
 import { BackdropBank, TileBank } from './tileart';
 import { THEME } from './themes';
@@ -162,6 +163,7 @@ export class Renderer {
     this.drawGhosts(world, camX, camY);
     this.drawCorpses(world, camX, camY);
     this.drawPlayer(world, camX, camY);
+    this.drawNameTags(world, camX, camY);
     this.mark('actors');
 
     ctx.imageSmoothingEnabled = false;
@@ -603,6 +605,62 @@ export class Renderer {
       this.sprites.draw(ctx, name, x, g.y - camY);
     }
     ctx.globalAlpha = 1;
+  }
+
+  /**
+   * Who is who, over their heads.
+   *
+   * A ghost is drawn at a quarter alpha, which is right for something you run
+   * straight through and wrong for something you are meant to recognise. The
+   * tag carries the recognition instead — full strength, and inked in the
+   * shirt colour that player picked, so the name and the runner under it are
+   * saying the same thing. Twelve outfits chosen so no two share a dominant
+   * colour only pays off if the colour is attached to a name.
+   *
+   * Drawn after the runners rather than with them, so a tag is never behind
+   * somebody else's body.
+   */
+  private drawNameTags(world: World, camX: number, camY: number): void {
+    const ctx = this.ctx;
+    if (world.me === null && world.ghosts.length === 0) return;
+
+    const w = world.player.w;
+    ctx.font = `bold ${px(5)}px monospace`;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'center';
+
+    const tag = (wx: number, wy: number, raw: string, kit: number, own: boolean): void => {
+      if (raw.length === 0) return;
+      const cx = wx + w / 2 - camX;
+      // Off-screen runners get no tag at all. Clamping one to the edge instead
+      // would leave a name parked at the side of the screen with nobody under
+      // it, which reads as a player standing still rather than a player gone.
+      if (cx < -px(8) || cx > VIEW_W + px(8)) return;
+      const y = Math.round(wy - camY - px(9));
+      if (y < -px(8) || y > VIEW_H) return;
+
+      const label = raw.toUpperCase();
+      const tw = ctx.measureText(label).width;
+      // Only the overhang is pulled in, so a long name at the screen edge stays
+      // readable while a tag in open ground still sits centred on its owner.
+      const x = Math.round(clamp(cx, tw / 2 + px(2), VIEW_W - tw / 2 - px(2)));
+
+      ctx.globalAlpha = own ? 0.75 : 1;
+      ctx.fillStyle = P.hudBack;
+      ctx.fillRect(Math.round(x - tw / 2 - px(2)), y - px(1), Math.round(tw + px(4)), px(7));
+      const combo = KIT_COMBOS[kit] ?? KIT_COMBOS[0]!;
+      ctx.fillStyle = KITS[combo.shirt]!.color;
+      ctx.fillText(label, x, y);
+      ctx.globalAlpha = 1;
+    };
+
+    for (const g of world.ghosts) tag(g.x, g.y, g.name, g.kit, false);
+    if (world.me !== null && world.player.alive) {
+      tag(world.player.x, world.player.y, world.me.name, world.me.kit, true);
+    }
+
+    // The HUD draws left-aligned and inherits this context.
+    ctx.textAlign = 'left';
   }
 
   private drawCorpses(world: World, camX: number, camY: number): void {

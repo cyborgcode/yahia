@@ -32,6 +32,8 @@ export interface Ghost {
   y: number;
   state: string;
   kit: number;
+  /** Joined in from the roster, not carried by the position stream. */
+  name: string;
 }
 
 export type Phase = 'lobby' | 'racing' | 'over' | 'offline';
@@ -88,6 +90,15 @@ export class RoomClient {
   selfId: string | null = null;
   ghosts: Ghost[] = [];
   phase: Phase = 'offline';
+  /**
+   * id -> name, kept from the roster.
+   *
+   * Names deliberately do not ride on the position packets. Those go out 20
+   * times a second and a name never changes mid-race; sending it with every
+   * frame would roughly triple the only message in the protocol that has a
+   * rate worth caring about.
+   */
+  private names = new Map<string, string>();
 
   constructor() {
     const base = serverUrl();
@@ -137,6 +148,7 @@ export class RoomClient {
         break;
       case 'roster':
         this.phase = msg.phase as Phase;
+        for (const p of msg.players as RosterPlayer[]) this.names.set(p.id, p.name);
         this.emit('onRoster', (f) =>
           f(msg.players as RosterPlayer[], this.phase, (msg.finishers ?? []) as Finisher[]),
         );
@@ -151,7 +163,7 @@ export class RoomClient {
         // would actually be confusing.
         this.ghosts = (msg.g as [string, number, number, string, number][])
           .filter(([id]) => id !== this.selfId)
-          .map(([id, x, y, state, kit]) => ({ id, x, y, state, kit }));
+          .map(([id, x, y, state, kit]) => ({ id, x, y, state, kit, name: this.names.get(id) ?? '' }));
         break;
       case 'corpse':
         if (msg.id !== this.selfId) {

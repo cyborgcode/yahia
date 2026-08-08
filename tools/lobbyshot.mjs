@@ -30,7 +30,20 @@ for (let i = 0; i < NAMES.length; i++) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-if (process.env.PHASE === 'over') {
+if (process.env.PHASE === 'race') {
+  // Everyone racing, and parked on top of each other so the nameplates have to
+  // survive the crowded case rather than the tidy one.
+  for (const p of pages) await p.click('#play');
+  await sleep(2000);
+  const spots = [90, 30, -40];
+  for (let i = 0; i < pages.length; i++) {
+    await pages[i].evaluate((dx) => {
+      const w = window.yahia;
+      w.player.x = w.player.x + dx;
+    }, spots[i]);
+  }
+  await sleep(400);
+} else if (process.env.PHASE === 'over') {
   // The same panel holds the finish board, so it has to be looked at too.
   for (const p of pages) await p.click('#play');
   // Let the race actually be running before anyone crosses the line: a finish

@@ -101,6 +101,9 @@ room.on({
   // ever sent, which is the entire reason the seed is the unit of a race.
   onStart: (seed) => {
     world.reset(seed);
+    // Read at the gun, not at boot: the name and the outfit can both change
+    // right up until READY.
+    world.me = { name: boot.name(), kit: boot.kitIndex() };
     showHints = false;
     running = true;
   },
