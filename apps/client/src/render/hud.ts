@@ -27,6 +27,7 @@ export function drawHud(ctx: CanvasRenderingContext2D, world: World, showHints: 
   drawSpeed(ctx, world);
   drawTally(ctx, world);
   drawTimer(ctx, world);
+  drawStanding(ctx, world);
 
   if (!world.player.alive) drawDeathBanner(ctx, world);
   if (world.finishedMs !== null) drawFinish(ctx, world);
@@ -74,6 +75,45 @@ function drawTally(ctx: CanvasRenderingContext2D, world: World): void {
   ctx.fillText('BODIES', px(68), px(26));
   ctx.fillStyle = P.corpseEdge;
   ctx.fillText(String(world.corpsesUsed.size), px(112), px(26));
+}
+
+/**
+ * Third row, and only in a room: where you stand and how close it is to over.
+ *
+ * A player could see their speed, their deaths and the clock, and none of that
+ * told them the one thing that decides the race — that it ends on the third
+ * runner home rather than the last. Without it the round can end on you
+ * mid-stride for no visible reason. With it, "two are home" is the moment a
+ * risky shortcut becomes worth taking.
+ *
+ * Rank counts the finished as ahead of you, because they are: a ghost stream
+ * only carries people still running, so ordering by position alone would
+ * quietly promote you every time somebody crossed the line.
+ */
+function drawStanding(ctx: CanvasRenderingContext2D, world: World): void {
+  const race = world.race;
+  if (race === null) return;
+
+  const ahead = world.ghosts.reduce((n, g) => (g.x > world.player.x ? n + 1 : n), 0);
+  const place = race.myPlace ?? race.home + ahead + 1;
+  const total = race.home + world.ghosts.length + (race.myPlace === null ? 1 : 0);
+  const left = Math.max(0, race.ends - race.home);
+  // One spot left is the whole tension of the format, so it is the one state
+  // that gets a colour rather than a number you have to subtract yourself.
+  const urgent = left === 1 && race.myPlace === null;
+
+  ctx.fillStyle = P.hudBack;
+  ctx.fillRect(px(4), px(40), px(132), px(16));
+
+  ctx.fillStyle = P.hudDim;
+  ctx.fillText('PLACE', px(7), px(44));
+  ctx.fillStyle = P.hud;
+  ctx.fillText(`${place}/${total}`, px(40), px(44));
+
+  ctx.fillStyle = P.hudDim;
+  ctx.fillText('HOME', px(70), px(44));
+  ctx.fillStyle = urgent ? P.goal : P.hud;
+  ctx.fillText(`${race.home}/${race.ends}`, px(102), px(44));
 }
 
 /**

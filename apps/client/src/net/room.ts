@@ -100,6 +100,12 @@ export class RoomClient {
    */
   private names = new Map<string, string>();
 
+  /** Runners already home, and how many it takes to end the race. */
+  home = 0;
+  ends = 3;
+  /** Your own finishing place once you have one, else null. */
+  myPlace: number | null = null;
+
   constructor() {
     const base = serverUrl();
     this.enabled = base !== null;
@@ -148,7 +154,12 @@ export class RoomClient {
         break;
       case 'roster':
         this.phase = msg.phase as Phase;
-        for (const p of msg.players as RosterPlayer[]) this.names.set(p.id, p.name);
+        for (const p of msg.players as RosterPlayer[]) {
+          this.names.set(p.id, p.name);
+          if (p.id === this.selfId) this.myPlace = p.place;
+        }
+        this.home = ((msg.finishers ?? []) as Finisher[]).length;
+        if (typeof msg.ends === 'number') this.ends = msg.ends;
         this.emit('onRoster', (f) =>
           f(msg.players as RosterPlayer[], this.phase, (msg.finishers ?? []) as Finisher[]),
         );

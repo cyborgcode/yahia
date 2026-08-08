@@ -59,6 +59,16 @@ export class World {
    * screen for an audience of the person it labels.
    */
   me: { name: string; kit: number } | null = null;
+
+  /**
+   * Where this run stands, in a room.
+   *
+   * The rule that decides a race — it is over when three people are home, not
+   * when everyone is — was the one thing a player had no way of seeing while
+   * running. Knowing two are already home changes what you do with a risky
+   * shortcut; not knowing means the race can simply end on you mid-stride.
+   */
+  race: { home: number; ends: number; myPlace: number | null } | null = null;
   /**
    * Where this runner's own last body fell. Paired with `deaths` it lets the net
    * layer report deaths by counting them rather than by catching the moment

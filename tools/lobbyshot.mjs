@@ -45,9 +45,25 @@ if (process.env.PHASE === 'race') {
     await pages[i].evaluate((dx) => {
       const w = window.yahia;
       w.player.x = w.player.x + dx;
-    }, spots[i]);
+      // NaN here silently deletes the runner from the world rather than
+      // erroring, so an unlisted spread is pinned to zero instead.
+    }, spots[i] ?? 0);
   }
   await sleep(400);
+} else if (process.env.PHASE === 'tense') {
+  // Two home, one podium spot left, shot from somebody still running. This is
+  // the state the standing readout exists for, and the only one where rank has
+  // to count finished runners as ahead of you.
+  for (const p of pages) await p.click('#play');
+  await sleep(2000);
+  for (const p of pages.slice(1, 3)) {
+    await p.evaluate(() => {
+      const w = window.yahia;
+      w.player.spawn(w.level.goalX + 8, w.level.checkpoints[0].y);
+    });
+    await sleep(600);
+  }
+  await sleep(800);
 } else if (process.env.PHASE === 'over') {
   // The same panel holds the finish board, so it has to be looked at too.
   for (const p of pages) await p.click('#play');

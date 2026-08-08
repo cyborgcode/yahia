@@ -105,6 +105,13 @@ await sleep(600);
 const afterTwo = await pages[2].evaluate(() => window.yahiaRoom?.phase);
 check('two finishers do not end the race', afterTwo === 'racing', `phase=${afterTwo}`);
 
+// The runner still out there has to be able to see how close it is to over.
+const standing = await pages[2].evaluate(() => {
+  const r = window.yahia.race;
+  return r === null ? 'none' : `${r.home}/${r.ends}`;
+});
+check('the last runner can see two are home', standing === '2/3', standing);
+
 await pages[2].evaluate(() => {
   const w = window.yahia;
   w.player.spawn(w.level.goalX + 8, w.level.checkpoints[0].y);

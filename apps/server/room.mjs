@@ -59,6 +59,10 @@ export class Room {
       t: 'roster',
       phase: this.phase,
       seed: this.seed,
+      // How many have to be home for it to be over. The client shows this
+      // during the race, and hardcoding it there would be two copies of a rule
+      // that only the server actually enforces.
+      ends: FINISHERS_TO_END,
       finishers: this.finishOrder.map((f) => ({ id: f.id, name: f.name, ms: f.ms, place: f.place })),
       players: [...this.players.values()].map((p) => ({
         id: p.id,

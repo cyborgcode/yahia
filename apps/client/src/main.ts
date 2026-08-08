@@ -154,6 +154,7 @@ startLoop(
       // Re-read rather than hold: the net layer replaces this array on every
       // packet, so a reference taken once at the start goes permanently stale.
       world.ghosts = room.ghosts;
+      world.race = { home: room.home, ends: room.ends, myPlace: room.myPlace };
       const p = world.player;
       const now = performance.now();
       room.position(p.x, p.y, p.sliding ? 'slide' : p.grounded ? 'run' : 'air', now);
