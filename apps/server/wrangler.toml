@@ -7,6 +7,11 @@ name = "ROOMS"
 class_name = "RaceRoom"
 
 # Durable Objects with a JS class need a migration tag the first time they ship.
+#
+# SQLite-backed rather than the older key-value backing, because that is the
+# only kind the Workers Free plan will deploy — and a room that needs a paid
+# account to exist is a room nobody will stand up. The object stores nothing but
+# an alarm, so the backing choice costs us nothing either way.
 [[migrations]]
 tag = "v1"
-new_classes = ["RaceRoom"]
+new_sqlite_classes = ["RaceRoom"]

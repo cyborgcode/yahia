@@ -303,6 +303,28 @@ minute duration cap — twelve players in one room could land on different insta
 never see each other. Rooms belong on **Cloudflare Durable Objects**, where
 `idFromName(roomCode)` maps a room code to exactly one stateful actor.
 
+### Turning multiplayer on
+
+Two commands and one environment variable, against your own Cloudflare account:
+
+```bash
+npx wrangler deploy --config apps/server/wrangler.toml   # prints wss://yahia-rooms.<you>.workers.dev
+```
+
+Then set `VITE_ROOM_URL` to that origin in the Vercel project's environment variables and
+redeploy. It is a **build-time** value — the client reads it through `import.meta.env`, so
+setting it without a rebuild changes nothing. Until it is set, `RoomClient.enabled` is
+false, the socket is never opened, and the game is the single-player prototype.
+
+The migration is declared `new_sqlite_classes`, which is the only Durable Object backing
+the Workers Free plan will deploy. The object stores nothing but an alarm, so that costs
+nothing.
+
+If you would rather not use Cloudflare: `apps/server/room.mjs` imports nothing and is
+already driven by plain `ws` in `tools/dev-room.mjs`, so any always-on Node host (Fly,
+Railway, Render) runs the same rulebook. What it cannot be is serverless — a room is a
+stateful actor that has to outlive a request.
+
 ## Status
 
 Verified by `npm run playtest` (25/25 checks, real browser, real build):
