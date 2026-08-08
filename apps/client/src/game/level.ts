@@ -58,12 +58,18 @@ export class Level {
    * instead of drawing tiles nobody can reach.
    */
   readonly earthTop: Int16Array;
+  /**
+   * Topmost solid row per column — the surface you can see — or -1 for open
+   * sky. Scenery is scattered along it.
+   */
+  readonly surfaceTop: Int16Array;
   goalX = 0;
 
   constructor(widthInTiles: number) {
     this.w = widthInTiles;
     this.data = new Uint8Array(widthInTiles * GRID_H);
     this.earthTop = new Int16Array(widthInTiles).fill(-1);
+    this.surfaceTop = new Int16Array(widthInTiles).fill(-1);
   }
 
   get pxWidth(): number {
@@ -221,9 +227,15 @@ export function buildLevel(seed: number, segmentCount = 24): Level {
 function fillBelowGround(level: Level): void {
   for (let tx = 0; tx < level.w; tx++) {
     let lowest = -1;
+    let highest = -1;
     for (let ty = 0; ty < level.h; ty++) {
-      if (isGround(level.get(tx, ty))) lowest = ty;
+      if (!isGround(level.get(tx, ty))) continue;
+      lowest = ty;
+      if (highest < 0) highest = ty;
     }
+    // Only a flat top carries scenery: a tuft balanced on the point of a slope
+    // reads as a mistake, and a spike with a flower on it reads as a lie.
+    level.surfaceTop[tx] = highest >= 0 && level.get(tx, highest) === Tile.Solid ? highest : -1;
     if (lowest < 0) {
       level.earthTop[tx] = -1;
       continue;

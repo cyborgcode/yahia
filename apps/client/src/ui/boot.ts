@@ -3,6 +3,7 @@ import {
   HERO_FRAME_H,
   HERO_FRAME_W,
   KITS,
+  type KitChoice,
   drawHero,
   heroSheet,
 } from '../render/hero';
@@ -26,20 +27,22 @@ const SPIN_MS = 90;
 
 export interface Boot {
   /** Swap the status line for a live PLAY button. */
-  ready(onPlay: (kit: number) => void): void;
-  kit(): number;
+  ready(onPlay: (kit: KitChoice) => void): void;
+  kit(): KitChoice;
 }
 
-/** Sky by default — the only kit that is not somebody's team colour. */
-const DEFAULT_KIT = 6;
+/** The supplied art's own colours: a pale shirt over pink shorts. */
+const DEFAULT_KIT: KitChoice = { shirt: 11, shorts: 10 };
 
-function savedKit(): number {
+function savedKit(): KitChoice {
   // Guard the null explicitly: Number(null) is 0, so a player who had never
   // picked anything was silently assigned the first kit instead of the default.
   const stored = localStorage.getItem(STORE_KEY);
   if (stored === null) return DEFAULT_KIT;
-  const raw = Number(stored);
-  return Number.isInteger(raw) && raw >= 0 && raw < KITS.length ? raw : DEFAULT_KIT;
+  const parts = stored.split(':').map(Number);
+  const ok = (n: number | undefined): n is number =>
+    n !== undefined && Number.isInteger(n) && n >= 0 && n < KITS.length;
+  return ok(parts[0]) && ok(parts[1]) ? { shirt: parts[0], shorts: parts[1] } : DEFAULT_KIT;
 }
 
 export function createBoot(): Boot {
@@ -96,25 +99,44 @@ export function createBoot(): Boot {
   }
 
   // --- kit picker ----------------------------------------------------------
-  const buttons: HTMLButtonElement[] = KITS.map((k, i) => {
-    const b = document.createElement('button');
-    b.className = 'kit';
-    b.style.background = k.color;
-    b.title = k.name;
-    b.setAttribute('aria-label', k.name);
-    b.addEventListener('click', () => {
-      if (i === kit) return;
-      kit = i;
-      localStorage.setItem(STORE_KEY, String(i));
-      // Bake before the turn starts so the first frame is already the new kit.
-      heroSheet(kit);
-      buttons.forEach((other, j) => other.classList.toggle('on', j === kit));
-      spin();
+  // One row per garment. A single palette with a "which am I colouring?" toggle
+  // would be fewer controls and one more thing to understand; two labelled rows
+  // are the whole model on screen at once.
+  function row(part: 'shirt' | 'shorts', label: string): void {
+    const strip = document.createElement('div');
+    strip.className = 'kit-row';
+    const name = document.createElement('span');
+    name.className = 'kit-label';
+    name.textContent = label;
+
+    const cells = document.createElement('div');
+    cells.className = 'kit-cells';
+
+    const buttons: HTMLButtonElement[] = KITS.map((k, i) => {
+      const b = document.createElement('button');
+      b.className = 'kit';
+      b.style.background = k.color;
+      b.title = `${label} — ${k.name}`;
+      b.setAttribute('aria-label', `${label} ${k.name}`);
+      b.addEventListener('click', () => {
+        if (kit[part] === i) return;
+        kit = { ...kit, [part]: i };
+        localStorage.setItem(STORE_KEY, `${kit.shirt}:${kit.shorts}`);
+        // Bake before the turn starts so the first frame is already the new kit.
+        heroSheet(kit);
+        buttons.forEach((other, j) => other.classList.toggle('on', j === kit[part]));
+        spin();
+      });
+      cells.append(b);
+      return b;
     });
-    swatches.append(b);
-    return b;
-  });
-  buttons[kit]?.classList.add('on');
+    buttons[kit[part]]?.classList.add('on');
+
+    strip.append(name, cells);
+    swatches.append(strip);
+  }
+  row('shirt', 'SHIRT');
+  row('shorts', 'SHORTS');
 
   return {
     kit: () => kit,

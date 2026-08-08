@@ -22,9 +22,24 @@ export interface Kit {
 }
 
 /**
- * Twelve, one per player, chosen for separation at a glance rather than for
- * even spacing round the wheel — indigo and violet are a even split and an
- * unusable one on a phone at arm's length.
+ * A kit is two choices, not one: a shirt colour and a shorts colour, picked
+ * independently from the same palette.
+ *
+ * One hue for both was the first version and it wasted the character. Twelve
+ * players need to be told apart at a glance on a small screen, and twelve
+ * single colours run out exactly at twelve — while two garments from a palette
+ * of twelve give a hundred and forty-four combinations that read as an outfit
+ * somebody chose rather than a number they were assigned.
+ */
+export interface KitChoice {
+  readonly shirt: number;
+  readonly shorts: number;
+}
+
+/**
+ * Twelve, chosen for separation at a glance rather than for even spacing round
+ * the wheel — indigo and violet are an even split and an unusable one on a
+ * phone at arm's length.
  */
 export const KITS: readonly Kit[] = [
   { name: 'Crimson', color: '#e03b4a' },
@@ -154,12 +169,12 @@ export function recolourSheet(
   artImg: HTMLImageElement,
   maskImg: HTMLImageElement,
   spans: Spans,
-  kitIndex: number,
+  choice: KitChoice,
 ): HTMLCanvasElement {
-  const kit = KITS[kitIndex] ?? KITS[0]!;
-  const base = rgb(kit.color);
-  const [shirtLo, shirtHi] = ramp(mix(base, WHITE, SHIRT_TINT), SHIRT_SHADOW, SHIRT_HIGHLIGHT);
-  const [shortsLo, shortsHi] = ramp(base, SHORTS_SHADOW, SHORTS_HIGHLIGHT);
+  const shirtBase = rgb((KITS[choice.shirt] ?? KITS[0]!).color);
+  const shortsBase = rgb((KITS[choice.shorts] ?? KITS[0]!).color);
+  const [shirtLo, shirtHi] = ramp(mix(shirtBase, WHITE, SHIRT_TINT), SHIRT_SHADOW, SHIRT_HIGHLIGHT);
+  const [shortsLo, shortsHi] = ramp(shortsBase, SHORTS_SHADOW, SHORTS_HIGHLIGHT);
   const SHIRT_SPAN = spans.shirtSpan;
   const SHORTS_SPAN = spans.shortsSpan;
 
@@ -200,34 +215,36 @@ export function recolourSheet(
   return canvas;
 }
 
-const sheets = new Map<number, HTMLCanvasElement>();
+const sheets = new Map<string, HTMLCanvasElement>();
 
 /**
  * The full turnaround in one kit, baked once.
  *
- * Lazily, and cached: recolouring is a quarter of a million pixel writes, and
- * baking all twelve up front would spend three million of them to show one.
+ * Lazily, and cached by the pair: recolouring is a quarter of a million pixel
+ * writes, and there are 144 combinations now — baking them up front would spend
+ * thirty million of them to show one.
  */
-export function heroSheet(kitIndex: number): HTMLCanvasElement | null {
+export function heroSheet(choice: KitChoice): HTMLCanvasElement | null {
   if (art === null || mask === null) return null;
-  const cached = sheets.get(kitIndex);
+  const id = `${choice.shirt}:${choice.shorts}`;
+  const cached = sheets.get(id);
   if (cached !== undefined) return cached;
 
-  const baked = recolourSheet(art, mask, HERO_SPANS, kitIndex);
-  sheets.set(kitIndex, baked);
+  const baked = recolourSheet(art, mask, HERO_SPANS, choice);
+  sheets.set(id, baked);
   return baked;
 }
 
 /** Draw one frame of the turnaround, scaled up on the pixel grid. */
 export function drawHero(
   ctx: CanvasRenderingContext2D,
-  kitIndex: number,
+  choice: KitChoice,
   frame: number,
   x: number,
   y: number,
   scale: number,
 ): void {
-  const sheet = heroSheet(kitIndex);
+  const sheet = heroSheet(choice);
   if (sheet === null) return;
   const f = ((frame % HERO_FRAMES) + HERO_FRAMES) % HERO_FRAMES;
   ctx.imageSmoothingEnabled = false;

@@ -102,12 +102,18 @@ Two poses the sheets don't contain:
 
 ## The kit
 
-The character you meet before you play is an 8-frame turnaround, and the twelve
-colours under him are how a room full of people tell each other apart.
+The character you meet before you play is an 8-frame turnaround, and the colours
+under him are how a room full of people tell each other apart.
 
 ```bash
 npm run hero         # re-slice the turnaround and rebuild both garment masks
 ```
+
+**A kit is two choices, not one.** Shirt and shorts are picked independently from the same
+palette of twelve, so there are 144 outfits rather than 12 — a room of twelve players can
+be told apart without anyone being assigned a number, and the pair reads as something
+somebody chose. Sheets are cached per pair and baked on demand: 144 combinations at a
+quarter of a million pixel writes each is not something to do up front.
 
 **Recolouring is a luminance remap, not a hue rotation.** The shirt in the source art
 is cream — saturation 0.14 — and rotating the hue of something that desaturated
@@ -159,6 +165,26 @@ to work around: the tileset draws platforms as outlined *shells* over see-throug
 interiors, but YAHIA's ground is a solid mass — so interiors are composited onto an opaque
 base sampled from the art itself. And it ships no slope tiles, so slopes are the surface
 tile clipped to a triangle with the art's own two-tone crust drawn along the diagonal.
+
+**The ground is dressed, and only where it is safe to.** Two surface variants picked by
+world position so the ground line stops repeating; tufts, stones and fencing scattered
+along it from the column index, so the same seed grows the same scenery on every phone.
+
+Scenery goes **only on flat solid tops** — never a slope, a spike or a breakable, where a
+decoration would sit at an angle or soften something about to kill you. And only low, flat,
+unmistakably decorative things: the tileset also has crates, benches and a ladder, and none
+of them are used, because a crate the runner passes straight through is a lie about what
+terrain does. The hedge was tried as a backdrop layer and taken out for the same reason —
+it is a closed ring of foliage rather than a silhouette, so at the ground line it read as a
+bush standing *on* the platform.
+
+**Bedrock is generated, not sliced.** The tileset's interior tile is genuinely blank — it
+was drawn to sit behind a platform shell a few tiles tall, not to be the bottom third of
+the screen, which is what it became when the view zoomed in. Patterning it changed nothing,
+because there was nothing in it to repeat. It is grain and faint strata over the art's own
+base tone, deliberately low contrast: this is the one region that must never suggest an
+edge you could stand on. The tile and the flood fill share one bake, or the boundary
+between them shows as a hard seam.
 
 **Creatures are obstacles.** An `E` in a segment marks a spot where something stands; the
 level picks which creature from the seed. They kill on contact and are **static** — at
@@ -235,7 +261,7 @@ Verified by `npm run playtest` (22/22 checks, real browser, real build):
 - **Sliding a descent peaks at 900 vs 583 running it** — the momentum model pays
 - Death leaves a body; bodies are solid platforms; martyr credit is recorded
 - Creatures are placed in the track and are lethal to touch
-- Twelve kits are offered, repaint the hero, and are worn into the race
+- Shirt and shorts are picked separately, repaint the hero, and are worn into the race
 
 ## Not built yet
 

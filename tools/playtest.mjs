@@ -47,16 +47,28 @@ const heroPixels = () =>
     return { opaque, sum };
   });
 
-const kitCount = await page.locator('.kit').count();
-check('kit picker offers one colour per player', kitCount >= 12, `${kitCount} kits`);
+const rowCount = await page.locator('.kit-row').count();
+const kitCount = await page.locator('.kit-row').nth(0).locator('.kit').count();
+check(
+  'shirt and shorts are picked separately',
+  rowCount === 2 && kitCount >= 12,
+  `${rowCount} garments x ${kitCount} colours = ${kitCount ** 2} kits`,
+);
 
 const beforeKit = await heroPixels();
 check('hero is drawn on the title screen', beforeKit.opaque > 5000, `${beforeKit.opaque} opaque px`);
 
-// Cobalt, deliberately: the source art has a cream shirt and pink shorts, so a
-// red kit would pass a "did it get warmer" test without doing anything at all.
-// Nothing on this character is blue except the shoes.
-await page.locator('.kit').nth(7).click();
+// Cobalt shirt, lime shorts — deliberately different, and deliberately neither
+// of the source art's own colours. The art is cream over pink, so a red kit
+// would pass a "did it get warmer" test without doing anything; and giving the
+// two garments the same hue could not tell a working split from one mask
+// painting both. Nothing on this character is blue or green.
+//
+// Lime rather than jade: jade is blue-green enough that b > r + 40 holds for it,
+// so its pixels answered the shirt test and the shorts looked unpainted.
+await page.locator('.kit-row').nth(0).locator('.kit').nth(7).click();
+await sleep(400);
+await page.locator('.kit-row').nth(1).locator('.kit').nth(3).click();
 await sleep(500);
 const afterKit = await heroPixels();
 check(
@@ -80,14 +92,20 @@ const runnerTinted = await page.evaluate(() => {
   // Sprites draw at a negative offset from the hitbox, so aim well inside.
   window.yahiaRenderer.sprites.draw(ctx, 'idle', 80, 80);
   const d = ctx.getImageData(0, 0, c.width, c.height).data;
-  let bluish = 0;
+  let shirt = 0;
+  let shorts = 0;
   for (let i = 0; i < d.length; i += 4) {
     if (d[i + 3] < 128) continue;
-    if (d[i + 2] > d[i] + 40) bluish += 1;
+    if (d[i + 2] > d[i] + 40) shirt += 1;
+    else if (d[i + 1] > d[i] + 30 && d[i + 1] > d[i + 2] + 30) shorts += 1;
   }
-  return bluish;
+  return { shirt, shorts };
 });
-check('the chosen kit is worn in the race', runnerTinted > 200, `${runnerTinted} kit-tinted px`);
+check(
+  'both garments are worn in the race, separately',
+  runnerTinted.shirt > 80 && runnerTinted.shorts > 60,
+  `${runnerTinted.shirt}px cobalt shirt, ${runnerTinted.shorts}px lime shorts`,
+);
 
 // Every threshold below is expressed in the authoring base and scaled, so
 // changing SCALE never invalidates the suite. The buffer size is read off the

@@ -1,6 +1,6 @@
 import { px } from '../game/scale';
 import manifest from './atlas.json';
-import { RUNNER_SPANS, recolourSheet } from './hero';
+import { RUNNER_SPANS, recolourSheet, type KitChoice } from './hero';
 import atlasUrl from './yahia-atlas.png';
 import maskUrl from './yahia-mask.png';
 
@@ -79,9 +79,9 @@ export async function loadAtlas(): Promise<void> {
  * the runner is drawn every frame and a per-frame composite would be the most
  * expensive thing on screen for a result that never varies between frames.
  */
-export function setKit(kitIndex: number): void {
+export function setKit(choice: KitChoice): void {
   if (atlas === null || kitMask === null) return;
-  source = recolourSheet(atlas, kitMask, RUNNER_SPANS, kitIndex);
+  source = recolourSheet(atlas, kitMask, RUNNER_SPANS, choice);
 }
 
 export class SpriteBank {

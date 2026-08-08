@@ -44,6 +44,31 @@ const horizon = (belowGroundLine: number): number =>
  */
 const BACKDROP_PIVOT = px(BASE_ROW * 16) - VIEW_H * T.cameraVerticalAnchor;
 
+/**
+ * Deterministic 0..1 from a column and a salt.
+ *
+ * Scenery has to come out identical on every phone from the level seed alone —
+ * the same reason tile variants are hashed rather than random. A flower that is
+ * in a different place on your screen and mine is a small thing; a flower that
+ * moves while you watch it is a broken one.
+ */
+function scatterHash(tx: number, salt: number): number {
+  let h = (Math.imul(tx, 374761393) + Math.imul(salt, 668265263)) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0;
+  return ((Math.imul(h, 1274126177) ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/**
+ * Ground scenery, and the rule for what may be in it.
+ *
+ * Everything here is low, flat and unmistakably decorative. The tileset also has
+ * crates, benches and a ladder, and none of them are here: a crate the runner
+ * passes straight through is a lie about what terrain does, and the one thing
+ * this game cannot afford is scenery that might be a platform. Those go in the
+ * backdrop, behind the ground, where nothing is standable by convention.
+ */
+const SCATTER = ['tuft', 'tuft2', 'tuft3', 'tuft4', 'rock', 'rock2', 'fence', 'fence2'] as const;
+
 /** Enough placements to cover the scrolled distance of one parallax layer. */
 function towerRow(
   rng: Rng,
@@ -130,6 +155,7 @@ export class Renderer {
     }
     this.mark('towers');
     this.drawTiles(world, camX, camY);
+    this.drawScatter(world.level, camX, camY);
     this.mark('tiles');
     this.drawCheckpoints(world, camX, camY);
     this.drawEnemies(world, camX, camY);
@@ -254,7 +280,23 @@ export class Renderer {
    */
   private drawDeepEarth(level: Level, tx0: number, tx1: number, camX: number, camY: number): void {
     const ctx = this.ctx;
-    ctx.fillStyle = this.tiles.deepColor;
+
+    // A repeating pattern, not a flat colour — and pinned to the world grid, or
+    // it swims against the terrain sitting on top of it. The context is shifted
+    // by the camera's offset within one tile and every rect shifted back, so the
+    // pattern scrolls with the ground while the rects stay where they were.
+    const atlasTiles = this.tiles instanceof AtlasTiles ? this.tiles : null;
+    const ox = -(camX % TILE);
+    const oy = -(camY % TILE);
+    ctx.save();
+    if (atlasTiles !== null) {
+      ctx.translate(ox, oy);
+      ctx.fillStyle = atlasTiles.deepFill;
+    } else {
+      ctx.fillStyle = this.tiles.deepColor;
+    }
+    const sx = atlasTiles !== null ? ox : 0;
+    const sy = atlasTiles !== null ? oy : 0;
 
     let runStart = -1;
     let runTop = 0;
@@ -262,7 +304,7 @@ export class Renderer {
       if (runStart < 0) return;
       const y = runTop * TILE - camY;
       if (y < VIEW_H) {
-        ctx.fillRect(runStart * TILE - camX, y, (endTx - runStart + 1) * TILE, VIEW_H - y);
+        ctx.fillRect(runStart * TILE - camX - sx, y - sy, (endTx - runStart + 1) * TILE, VIEW_H - y);
       }
       runStart = -1;
     };
@@ -281,6 +323,39 @@ export class Renderer {
       }
     }
     flush(tx1);
+    ctx.restore();
+  }
+
+  /**
+   * Tufts, stones and fencing along the surface.
+   *
+   * Placed from the column index, so the same track grows the same scenery on
+   * every phone, and only where the column's top tile is flat solid ground —
+   * never on a slope, a spike or a breakable, where a decoration would sit at a
+   * angle or, worse, soften something that is about to kill you.
+   */
+  private drawScatter(level: Level, camX: number, camY: number): void {
+    if (!(this.tiles instanceof AtlasTiles)) return;
+    const ctx = this.ctx;
+    const tx0 = Math.max(0, Math.floor(camX / TILE));
+    const tx1 = Math.min(level.w - 1, Math.ceil((camX + VIEW_W) / TILE));
+
+    for (let tx = tx0; tx <= tx1; tx++) {
+      const surface = level.surfaceTop[tx] ?? -1;
+      if (surface < 0) continue;
+      // Roughly one column in three, so the ground is dressed rather than
+      // carpeted — scenery on every tile is as monotonous as none at all.
+      const roll = scatterHash(tx, 17);
+      if (roll > 0.34) continue;
+
+      const key = SCATTER[Math.floor(scatterHash(tx, 43) * SCATTER.length)] ?? SCATTER[0];
+      const img = this.tiles.prop(key, 1);
+      const y = surface * TILE - camY - img.height;
+      if (y > VIEW_H || y + img.height < 0) continue;
+      // Nudged within the tile so a run of props doesn't line up on the grid.
+      const jitter = Math.round(scatterHash(tx, 71) * (TILE - img.width));
+      ctx.drawImage(img, Math.round(tx * TILE - camX + jitter), Math.round(y));
+    }
   }
 
   private drawTiles(world: World, camX: number, camY: number): void {
@@ -317,7 +392,11 @@ export class Renderer {
                 if (level.get(tx - 1, ty) === Tile.Empty) faces = 'L';
                 if (level.get(tx + 1, ty) === Tile.Empty) faces = faces === 'L' ? 'LR' : 'R';
               }
-              ctx.drawImage(this.tiles.faced_(exposed ? 'top' : 'deep', faces), x, y);
+              ctx.drawImage(
+                this.tiles.faced_(exposed ? 'top' : 'deep', faces, scatterHash(tx, 91) < 0.5 ? 0 : 1),
+                x,
+                y,
+              );
               break;
             }
             if (this.flatTiles) {
@@ -430,11 +509,16 @@ export class Renderer {
     // third of the frame and read as something you could stand on — which is the
     // background-becomes-floor confusion the palette rules exist to prevent, and
     // a worse failure than an empty sky. Distant silhouettes, not scenery.
+    // The hedge was tried as a third, nearest layer and taken straight back out:
+    // it is a closed ring of foliage, not a silhouette, so at the ground line it
+    // read as a solid bush sitting ON the platform rather than behind it — the
+    // exact background-as-foreground confusion these layers exist to avoid.
     for (const layer of [
-      { factor: 0.22, spacing: px(140), alpha: 0.72, scale: 1.15, base: horizon(71) },
-      { factor: 0.45, spacing: px(184), alpha: 1, scale: 1.5, base: horizon(95) },
+      { key: 'tree', factor: 0.22, spacing: px(140), alpha: 0.72, scale: 1.15, base: horizon(71) },
+      { key: 'tree', factor: 0.45, spacing: px(184), alpha: 1, scale: 1.5, base: horizon(95) },
     ]) {
-      const img = (this.tiles as AtlasTiles).prop('tree', layer.scale);
+      if (frameRect(layer.key) === undefined) continue;
+      const img = (this.tiles as AtlasTiles).prop(layer.key, layer.scale);
       const ox = camX * layer.factor;
       const oy = clamp((camY - BACKDROP_PIVOT) * layer.factor * 0.12, -px(20), px(20));
       const first = Math.floor((ox - img.width) / layer.spacing);

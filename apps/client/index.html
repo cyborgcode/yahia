@@ -106,11 +106,26 @@
         image-rendering: crisp-edges;
       }
       #kits {
-        display: grid;
-        grid-template-columns: repeat(6, 1fr);
-        gap: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
         width: 100%;
-        max-width: 300px;
+        max-width: 320px;
+      }
+      .kit-row {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .kit-label {
+        font-size: 9px;
+        letter-spacing: 0.3em;
+        color: var(--dim);
+      }
+      .kit-cells {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 5px;
       }
       .kit {
         aspect-ratio: 1;

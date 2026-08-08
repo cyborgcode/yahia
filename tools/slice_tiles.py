@@ -45,11 +45,32 @@ EDGE_RIGHT = (12, 1)
 WEAK_TOP = (8, 2)                # the teal set, visibly different for breakables
 WEAK_FILL = (11, 1)
 
-# Props.
+# Props, as exact pixel boxes.
+#
+# Found by flood-filling the source for opaque islands and printing their bounds
+# rather than read off a grid: these are hand-placed on the sheet at arbitrary
+# sizes, and a guessed box clips a leaf or drags in a neighbour.
+#
+# Only things that read as SCENERY are taken. The sheet also has a ladder and
+# signs, and both are promises the game does not keep — a ladder you cannot climb
+# is worse than no ladder, because the one thing terrain must never do is lie
+# about what you can do with it.
 TREE = (0, 0, 112, 128)
 HEDGE = (176, 64, 224, 112)
-GRASS_TUFT = (144, 80, 160, 96)
-ROCK = (256, 80, 272, 96)
+
+SCATTER = {
+    'tuft': (227, 90, 237, 96),
+    'tuft2': (242, 91, 252, 96),
+    'tuft3': (227, 106, 237, 112),
+    'tuft4': (242, 107, 252, 112),
+    'rock': (259, 88, 270, 96),
+    'rock2': (257, 103, 270, 112),
+    'fence': (229, 40, 267, 48),
+    'fence2': (229, 56, 267, 64),
+    'crate': (130, 66, 142, 78),
+    'bench': (225, 69, 239, 80),
+    'campfire': (257, 67, 271, 80),
+}
 
 
 def load(name):
@@ -143,8 +164,8 @@ def main():
 
     add('tree', upscale(src.crop(TREE), SCALE))
     add('hedge', upscale(src.crop(HEDGE), SCALE))
-    add('tuft', upscale(src.crop(GRASS_TUFT), SCALE))
-    add('rock', upscale(src.crop(ROCK), SCALE))
+    for key, box in SCATTER.items():
+        add(key, upscale(src.crop(box), SCALE))
 
     for i, box in enumerate([(48, 0, 80, 32), (80, 0, 112, 32), (112, 0, 128, 32)]):
         add(f'moon{i}', upscale(moons_img.crop(box), SCALE))

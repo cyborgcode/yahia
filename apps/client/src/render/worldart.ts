@@ -103,6 +103,15 @@ export class AtlasTiles {
   /** Flat colour for earth too deep to have any detail worth drawing. */
   readonly deepColor = BASE;
 
+  /**
+   * The earth under the crust, as a repeating pattern rather than a flat colour.
+   *
+   * One fillRect with a pattern costs about what one fillRect costs; drawing the
+   * same area as individual tiles cost 11fps. At 10 tiles across, the flat slab
+   * this replaces was a third of the screen with nothing in it.
+   */
+  readonly deepFill: CanvasPattern | string = BASE;
+
   constructor() {
     this.baked.set('breakable', this.blit('weakTop'));
     this.baked.set('slopeR', this.slope(true));
@@ -111,27 +120,107 @@ export class AtlasTiles {
     // Edge faces are baked INTO the tile rather than overlaid at draw time.
     // Overlaying cost up to three drawImage calls per tile across ~500 tiles a
     // frame; there are only four possible face combinations, so bake them.
-    for (const [kind, key] of [['top', 'groundTop'], ['deep', 'groundFill']] as const) {
-      for (const faces of ['', 'L', 'R', 'LR'] as Faces[]) {
-        this.faced.set(`${kind}${faces}`, this.blitFaced(key, faces));
-      }
-      this.baked.set(kind, this.faced.get(`${kind}`)!);
+    //
+    // The surface has two variants in the tileset and only one was ever used,
+    // which at this zoom made every metre of ground identical. Both are baked
+    // and picked by world position, so the ground line stops repeating.
+    // Bedrock is one material whether it arrives as a tile or as the flood fill
+    // below them. Baked first, and used as the source for the deep tile: while
+    // the tile was the tileset's blank interior and the flood was textured, the
+    // boundary between them showed as a hard horizontal seam across the screen.
+    const bedrock = this.bakeDeepTexture();
+
+    for (const [kind, sources] of [
+      ['top', ['groundTop', 'groundTop2']],
+      ['deep', [bedrock]],
+    ] as [Kind, (string | HTMLCanvasElement)[]][]) {
+      sources.forEach((source, variant) => {
+        for (const faces of ['', 'L', 'R', 'LR'] as Faces[]) {
+          this.faced.set(`${kind}${variant}${faces}`, this.blitFaced(source, faces));
+        }
+      });
+      this.baked.set(kind, this.faced.get(`${kind}0`)!);
     }
+
+    const probe = document.createElement('canvas').getContext('2d');
+    this.deepFill = probe?.createPattern(bedrock, 'repeat') ?? BASE;
+  }
+
+  /**
+   * Bedrock: strata and grit over the art's own base tone.
+   *
+   * Generated rather than sliced, because the tileset has nothing for this. Its
+   * "interior" tile is genuinely blank — it is meant to sit behind an outlined
+   * platform shell a few tiles tall, not to be the bottom third of the screen,
+   * which is what it became when the view zoomed in. Patterning it changed
+   * nothing at all, because there was nothing in it to repeat.
+   *
+   * Deliberately low contrast. This is the one region of the screen that must
+   * never suggest an edge you could stand on, so it gets texture without
+   * feature: no highlights, no horizontals strong enough to read as a ledge.
+   */
+  private bakeDeepTexture(): HTMLCanvasElement {
+    const S = TILE;
+    const c = document.createElement('canvas');
+    c.width = S;
+    c.height = S;
+    const ctx = c.getContext('2d')!;
+    const [br, bg, bb] = manifest.base as number[] as [number, number, number];
+
+    const img = ctx.createImageData(S, S);
+    const d = img.data;
+    // Any tile-sized canvas repeats seamlessly by construction; the only seam
+    // that could show is in the noise, and fine grit has none to show.
+    const hash = (x: number, y: number, salt: number): number => {
+      let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(salt, 2246822519)) >>> 0;
+      h = (h ^ (h >>> 13)) >>> 0;
+      return ((Math.imul(h, 1274126177) ^ (h >>> 16)) >>> 0) / 4294967296;
+    };
+
+    for (let y = 0; y < S; y++) {
+      // Strata: broad, soft bands that drift, so the rock has bedding planes
+      // rather than stripes.
+      const band = Math.sin((y / S) * Math.PI * 2) * 0.5 + Math.sin((y / S) * Math.PI * 6) * 0.2;
+      for (let x = 0; x < S; x++) {
+        const grit = hash(x, y, 7) - 0.5;
+        const stone = hash(x >> 2, y >> 2, 31);
+        // Absolute levels, not a percentage. The base tone is rgb(39,32,52), so
+        // a 7% shade is under three levels — invisible, which is exactly what
+        // the first attempt at this looked like.
+        // Grain over banding. The strata are one tile long, so any strength in
+        // them repeats as hard stripes every 48px; grit has no period to show.
+        let shade = band * 3.5 + grit * 15;
+        if (stone > 0.955) shade += 16;
+        const i = (y * S + x) * 4;
+        d[i] = Math.max(0, Math.min(255, Math.round(br + shade)));
+        d[i + 1] = Math.max(0, Math.min(255, Math.round(bg + shade)));
+        // Blue lifts a little faster, so depth cools rather than just lightens.
+        d[i + 2] = Math.max(0, Math.min(255, Math.round(bb + shade * 1.35)));
+        d[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return c;
   }
 
   get(kind: Kind): HTMLCanvasElement {
     return this.baked.get(kind) ?? this.baked.get('deep')!;
   }
 
+  /** How many surface variants exist, so the caller can pick one. */
+  readonly topVariants = 2;
+
   /** One blit per tile, faces included. */
-  faced_(kind: 'top' | 'deep', faces: Faces): HTMLCanvasElement {
-    return this.faced.get(`${kind}${faces}`)!;
+  faced_(kind: 'top' | 'deep', faces: Faces, variant = 0): HTMLCanvasElement {
+    const v = kind === 'top' ? variant % this.topVariants : 0;
+    return this.faced.get(`${kind}${v}${faces}`)!;
   }
 
-  private blitFaced(key: string, faces: Faces): HTMLCanvasElement {
+  private blitFaced(source: string | HTMLCanvasElement, faces: Faces): HTMLCanvasElement {
     const [c, ctx] = this.canvas();
     ctx.imageSmoothingEnabled = false;
-    drawFrame(ctx, key, 0, 0);
+    if (typeof source === 'string') drawFrame(ctx, source, 0, 0);
+    else ctx.drawImage(source, 0, 0);
     if (faces.includes('L')) drawFrame(ctx, 'groundLeft', 0, 0);
     if (faces.includes('R')) drawFrame(ctx, 'groundRight', 0, 0);
     return c;
