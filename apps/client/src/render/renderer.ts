@@ -397,6 +397,13 @@ export class Renderer {
                 x,
                 y,
               );
+              // An overhang needs a bottom. Air below only counts as visible if
+              // it sits above this column's flood line — below that the bedrock
+              // fill covers it, and every column ends in air down there.
+              const earth = level.earthTop[tx] ?? -1;
+              if (level.get(tx, ty + 1) === Tile.Empty && (earth < 0 || ty + 1 < earth)) {
+                ctx.drawImage(this.tiles.underside, x, y);
+              }
               break;
             }
             if (this.flatTiles) {

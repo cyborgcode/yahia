@@ -269,15 +269,21 @@ export function buildLevel(seed: number, segmentCount = 24): Level {
 function fillBelowGround(level: Level): void {
   for (let tx = 0; tx < level.w; tx++) {
     let lowest = -1;
-    let highest = -1;
     for (let ty = 0; ty < level.h; ty++) {
-      if (!isGround(level.get(tx, ty))) continue;
-      lowest = ty;
-      if (highest < 0) highest = ty;
+      if (isGround(level.get(tx, ty))) lowest = ty;
+    }
+    // The walkable floor, not the topmost solid tile. Those differ wherever
+    // there is something to slide under: the ducker's bar is the highest thing
+    // in its column, and scenery placed there grew flowers on the underside of
+    // an overhang. Walk up from the bottom of the column's ground instead.
+    let walkable = -1;
+    if (lowest >= 0) {
+      walkable = lowest;
+      while (walkable > 0 && isGround(level.get(tx, walkable - 1))) walkable -= 1;
     }
     // Only a flat top carries scenery: a tuft balanced on the point of a slope
     // reads as a mistake, and a spike with a flower on it reads as a lie.
-    level.surfaceTop[tx] = highest >= 0 && level.get(tx, highest) === Tile.Solid ? highest : -1;
+    level.surfaceTop[tx] = walkable >= 0 && level.get(tx, walkable) === Tile.Solid ? walkable : -1;
     if (lowest < 0) {
       level.earthTop[tx] = -1;
       continue;

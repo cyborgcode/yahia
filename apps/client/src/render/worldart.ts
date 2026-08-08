@@ -102,6 +102,8 @@ export class AtlasTiles {
   readonly size = TILE;
   /** Flat colour for earth too deep to have any detail worth drawing. */
   readonly deepColor = BASE;
+  /** Overlay for a tile whose underside is exposed to air you can see. */
+  readonly underside = this.bakeUnderside();
 
   /**
    * The earth under the crust, as a repeating pattern rather than a flat colour.
@@ -255,6 +257,26 @@ export class AtlasTiles {
     const [c, ctx] = this.canvas();
     ctx.imageSmoothingEnabled = false;
     drawFrame(ctx, key, 0, 0);
+    return c;
+  }
+
+  /**
+   * A finished underside, for ground with visible air beneath it.
+   *
+   * The pieces you slide under — the ducker's bar, the tunnel roof — are solid
+   * blocks floating two rows above the floor, and the tileset has no bottom
+   * edge, so they rendered as lumps of earth with grass on top and a flat cut
+   * bottom hanging in the void. They are meant to read as an overhang. Same
+   * two-tone treatment as a slope's diagonal, along the bottom instead.
+   */
+  private bakeUnderside(): HTMLCanvasElement {
+    const [c, ctx] = this.canvas();
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = CRUST_UNDER;
+    ctx.fillRect(0, TILE - px(3), TILE, px(3));
+    // A darker lip right at the cut, so the edge has a thickness to it.
+    ctx.fillStyle = BASE;
+    ctx.fillRect(0, TILE - px(1), TILE, px(1));
     return c;
   }
 
