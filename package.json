@@ -23,7 +23,8 @@
     "room:cf": "wrangler dev --config apps/server/wrangler.toml --port 8787",
     "deploy:rooms": "wrangler deploy --config apps/server/wrangler.toml",
     "multitest": "node tools/multitest.mjs",
-    "roomtest": "node tools/roomtest.mjs"
+    "roomtest": "node tools/roomtest.mjs",
+    "lobbyshot": "node tools/lobbyshot.mjs"
   },
   "devDependencies": {
     "playwright": "^1.56.1",
