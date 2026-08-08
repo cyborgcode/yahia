@@ -70,6 +70,17 @@ function scatterHash(tx: number, salt: number): number {
  */
 const SCATTER = ['tuft', 'tuft2', 'tuft3', 'tuft4', 'rock', 'rock2', 'fence', 'fence2'] as const;
 
+/**
+ * How solid a living rival looks.
+ *
+ * They are not solid — you run straight through them, and only a corpse is
+ * ground — so a ghost must never read as something you could land on. It was
+ * a quarter, which over this backdrop meant a rival's own nameplate was more
+ * visible than the rival. Now that the tags do the identifying, this only has
+ * to say "a person, not a platform", and it can afford to be seen doing it.
+ */
+const GHOST_ALPHA = 0.45;
+
 /** Enough placements to cover the scrolled distance of one parallax layer. */
 function towerRow(
   rng: Rng,
@@ -596,7 +607,7 @@ export class Renderer {
   private drawGhosts(world: World, camX: number, camY: number): void {
     if (world.ghosts.length === 0) return;
     const ctx = this.ctx;
-    ctx.globalAlpha = 0.25;
+    ctx.globalAlpha = GHOST_ALPHA;
     for (const g of world.ghosts) {
       const x = g.x - camX;
       if (x < -px(40) || x > VIEW_W + px(40)) continue;
@@ -629,7 +640,25 @@ export class Renderer {
     ctx.textBaseline = 'top';
     ctx.textAlign = 'center';
 
-    const tag = (wx: number, wy: number, raw: string, kit: number, own: boolean): void => {
+    interface Tag {
+      key: string;
+      x: number;
+      y: number;
+      label: string;
+      tw: number;
+      kit: number;
+      own: boolean;
+    }
+    const tags: Tag[] = [];
+
+    const consider = (
+      key: string,
+      wx: number,
+      wy: number,
+      raw: string,
+      kit: number,
+      own: boolean,
+    ): void => {
       if (raw.length === 0) return;
       const cx = wx + w / 2 - camX;
       // Off-screen runners get no tag at all. Clamping one to the edge instead
@@ -643,21 +672,62 @@ export class Renderer {
       const tw = ctx.measureText(label).width;
       // Only the overhang is pulled in, so a long name at the screen edge stays
       // readable while a tag in open ground still sits centred on its owner.
-      const x = Math.round(clamp(cx, tw / 2 + px(2), VIEW_W - tw / 2 - px(2)));
-
-      ctx.globalAlpha = own ? 0.75 : 1;
-      ctx.fillStyle = P.hudBack;
-      ctx.fillRect(Math.round(x - tw / 2 - px(2)), y - px(1), Math.round(tw + px(4)), px(7));
-      const combo = KIT_COMBOS[kit] ?? KIT_COMBOS[0]!;
-      ctx.fillStyle = KITS[combo.shirt]!.color;
-      ctx.fillText(label, x, y);
-      ctx.globalAlpha = 1;
+      tags.push({
+        key,
+        x: Math.round(clamp(cx, tw / 2 + px(2), VIEW_W - tw / 2 - px(2))),
+        y,
+        label,
+        tw,
+        kit,
+        own,
+      });
     };
 
-    for (const g of world.ghosts) tag(g.x, g.y, g.name, g.kit, false);
+    for (const g of world.ghosts) consider(g.id, g.x, g.y, g.name, g.kit, false);
     if (world.me !== null && world.player.alive) {
-      tag(world.player.x, world.player.y, world.me.name, world.me.kit, true);
+      consider('', world.player.x, world.player.y, world.me.name, world.me.kit, true);
     }
+    if (tags.length === 0) {
+      ctx.textAlign = 'left';
+      return;
+    }
+
+    /**
+     * Stack tags that would otherwise sit on top of each other.
+     *
+     * Everyone starts on the same tile, so the crowded case is not an edge
+     * case — it is the first two seconds of every race, and three overlapping
+     * names are less use than none. Each tag takes the lowest free row above
+     * its owner's head.
+     *
+     * Rows are handed out in id order rather than by position, so a tag keeps
+     * its row while two runners jostle past each other instead of flickering
+     * between rows every time they swap places.
+     */
+    const ROWS = 4;
+    const rows: { left: number; right: number }[][] = [];
+    tags.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+
+    for (const t of tags) {
+      const left = t.x - t.tw / 2 - px(3);
+      const right = t.x + t.tw / 2 + px(3);
+      let row = 0;
+      while (row < ROWS - 1) {
+        const taken = rows[row];
+        if (taken === undefined || !taken.some((s) => left < s.right && right > s.left)) break;
+        row += 1;
+      }
+      (rows[row] ??= []).push({ left, right });
+
+      const y = t.y - row * px(8);
+      ctx.globalAlpha = t.own ? 0.75 : 1;
+      ctx.fillStyle = P.hudBack;
+      ctx.fillRect(Math.round(t.x - t.tw / 2 - px(2)), y - px(1), Math.round(t.tw + px(4)), px(7));
+      const combo = KIT_COMBOS[t.kit] ?? KIT_COMBOS[0]!;
+      ctx.fillStyle = KITS[combo.shirt]!.color;
+      ctx.fillText(t.label, t.x, y);
+    }
+    ctx.globalAlpha = 1;
 
     // The HUD draws left-aligned and inherits this context.
     ctx.textAlign = 'left';

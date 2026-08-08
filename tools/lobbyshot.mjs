@@ -34,8 +34,8 @@ if (process.env.PHASE === 'race') {
   // Everyone racing, and parked on top of each other so the nameplates have to
   // survive the crowded case rather than the tidy one.
   for (const p of pages) await p.click('#play');
-  await sleep(2000);
-  const spots = [90, 30, -40];
+  await sleep(1400);
+  const spots = [60, 20, -30];
   for (let i = 0; i < pages.length; i++) {
     await pages[i].evaluate((dx) => {
       const w = window.yahia;
